@@ -866,8 +866,9 @@ th {
       Book Reading & Reflection Event
      </h1>
      <p class="subtitle">
-      Read with intention. Reflect with purpose. Bring your leadership insights to the weekly MS Teams discussion.
-     </p>
+      This pre-work activity guides participants to complete weekly reading assignments, 
+	  submit short reflections, and join weekly Friday MS Teams sessions to share key takeaways before the Bootcamp.
+	  </p>
     </div>
    </div>
   </header>
@@ -1060,21 +1061,151 @@ const firebaseConfig = {
 
 // ===== Constants & Default Reading Plan =====
 const PASS="TUB2026",DB_ROOT="bookReadingEvents/tub2026/start-with-why-v2",LOCAL_PROGRAM="tubook:book-reading-event:v1:program",LOCAL_RESP="tubook:book-reading-event:v1:responses",HEADER_LOGO_URL="assets/bootcamp-logo-white.png",BOOTCAMP_LOGO_URL="assets/bootcamp-logo.png",AHR_LOGO_URL="assets/ahr-logo.png",PASSPORT_STAMP_URL="assets/passport.png";
-const defaults={weeks:[{id:"week1",weekNo:1,sessionTitle:"Session 1",chapters:"Chapters 1–3",readingStart:"2026-06-15T00:00",reflectionOpen:"2026-06-16T17:00",reflectionClose:"2026-06-19T15:00",discussionStart:"2026-06-19T15:30",discussionEnd:"2026-06-19T16:00",questions:[{id:"w1q1",chapter:"Chapter 1",en:"What is one idea from Chapter 1 that made you rethink how people make decisions?",vi:"Một ý trong Chương 1 khiến bạn nhìn lại cách con người ra quyết định là gì?"},{id:"w1q2",chapter:"Chapter 2",en:"What is one example of manipulation versus inspiration that you can observe at work?",vi:"Một ví dụ về thao túng so với truyền cảm hứng mà bạn quan sát được trong công việc là gì?"},{id:"w1q3",chapter:"Chapter 3",en:"How would you explain your own WHY in one simple sentence at this point?",vi:"Ở thời điểm này, bạn sẽ diễn đạt WHY của bản thân bằng một câu đơn giản như thế nào?"}]},{id:"week2",weekNo:2,sessionTitle:"Session 2",chapters:"Chapters 4–6",readingStart:"2026-06-22T00:00",reflectionOpen:"2026-06-23T17:00",reflectionClose:"2026-06-26T15:00",discussionStart:"2026-06-26T15:30",discussionEnd:"2026-06-26T16:00",questions:[{id:"w2q1",chapter:"Chapter 4",en:"What did this chapter help you understand about trust in leadership?",vi:"Chương này giúp bạn hiểu gì về niềm tin trong lãnh đạo?"},{id:"w2q2",chapter:"Chapter 5",en:"How does decision-making connect with communication at work?",vi:"Việc ra quyết định liên hệ thế nào với giao tiếp trong công việc?"},{id:"w2q3",chapter:"Chapter 6",en:"What behavior can help you build more trust with teammates or stakeholders?",vi:"Hành vi nào giúp bạn xây dựng thêm niềm tin với đồng đội hoặc stakeholder?"}]},{id:"week3",weekNo:3,sessionTitle:"Session 3",chapters:"Chapters 7–10",readingStart:"2026-06-29T00:00",reflectionOpen:"2026-06-30T17:00",reflectionClose:"2026-07-03T15:00",discussionStart:"2026-07-03T15:30",discussionEnd:"2026-07-03T16:00",questions:[{id:"w3q1",chapter:"Chapter 7",en:"What does this chapter suggest about turning belief into action?",vi:"Chương này gợi ý điều gì về việc biến niềm tin thành hành động?"},{id:"w3q2",chapter:"Chapter 8–10",en:"What lesson can you apply when working with your team during Bootcamp?",vi:"Bài học nào bạn có thể áp dụng khi làm việc nhóm trong Bootcamp?"}]},{id:"week4",weekNo:4,sessionTitle:"Session 4",chapters:"Chapters 11–14",readingStart:"2026-07-06T00:00",reflectionOpen:"2026-07-07T17:00",reflectionClose:"2026-07-10T15:00",discussionStart:"2026-07-10T15:30",discussionEnd:"2026-07-10T16:00",questions:[{id:"w4q1",chapter:"Chapter 11–13",en:"What lesson feels most relevant to your development journey?",vi:"Bài học nào liên quan nhất đến hành trình phát triển của bạn?"},{id:"w4q2",chapter:"Final Application",en:"What commitment will you carry into Talent Uplift Bootcamp 2026?",vi:"Cam kết nào bạn sẽ mang vào Talent Uplift Bootcamp 2026?"}]}]};
+const DEPARTMENTS=[
+  "Asia Human Resources",
+  "Engineering",
+  "HR and Administration",
+  "Management",
+  "Product Development",
+  "Quality Assurance",
+  "Strategy Execution"
+];
+const defaults = {
+  weeks: [
+    {
+      id: "week1",
+      weekNo: 1,
+      sessionTitle: "Session 1",
+      chapters: "Chapters 1–3",
+      readingStart: "2026-06-15T00:00",
+      reflectionOpen: "2026-06-16T17:00",
+      reflectionClose: "2026-06-19T15:00",
+      discussionStart: "2026-06-19T15:30",
+      discussionEnd: "2026-06-19T16:00",
+      questions: [
+        {
+          id: "w1q1",
+          chapter: "Chapter 1",
+          en: "What is one idea from Chapter 1 that made you rethink how people make decisions?",
+          vi: "Một ý trong Chương 1 khiến bạn nhìn lại cách con người ra quyết định là gì?"
+        },
+        {
+          id: "w1q2",
+          chapter: "Chapter 2",
+          en: "What is one example of manipulation versus inspiration that you can observe at work?",
+          vi: "Một ví dụ về thao túng so với truyền cảm hứng mà bạn quan sát được trong công việc là gì?"
+        },
+        {
+          id: "w1q3",
+          chapter: "Chapter 3",
+          en: "How would you explain your own WHY in one simple sentence at this point?",
+          vi: "Ở thời điểm này, bạn sẽ diễn đạt WHY của bản thân bằng một câu đơn giản như thế nào?"
+        }
+      ]
+    },
+
+    {
+      id: "week2",
+      weekNo: 2,
+      sessionTitle: "Session 2",
+      chapters: "Chapters 4–6",
+      readingStart: "2026-06-22T00:00",
+      reflectionOpen: "2026-06-23T17:00",
+      reflectionClose: "2026-06-26T15:00",
+      discussionStart: "2026-06-26T15:30",
+      discussionEnd: "2026-06-26T16:00",
+      questions: [
+        {
+          id: "w2q1",
+          chapter: "Chapter 4",
+          en: "What did this chapter help you understand about trust in leadership?",
+          vi: "Chương này giúp bạn hiểu gì về niềm tin trong lãnh đạo?"
+        },
+        {
+          id: "w2q2",
+          chapter: "Chapter 5",
+          en: "How does decision-making connect with communication at work?",
+          vi: "Việc ra quyết định liên hệ thế nào với giao tiếp trong công việc?"
+        },
+        {
+          id: "w2q3",
+          chapter: "Chapter 6",
+          en: "What behavior can help you build more trust with teammates or stakeholders?",
+          vi: "Hành vi nào giúp bạn xây dựng thêm niềm tin với đồng đội hoặc stakeholder?"
+        }
+      ]
+    },
+
+    {
+      id: "week3",
+      weekNo: 3,
+      sessionTitle: "Session 3",
+      chapters: "Chapters 7–10",
+      readingStart: "2026-06-29T00:00",
+      reflectionOpen: "2026-06-30T17:00",
+      reflectionClose: "2026-07-03T15:00",
+      discussionStart: "2026-07-03T15:30",
+      discussionEnd: "2026-07-03T16:00",
+      questions: [
+        {
+          id: "w3q1",
+          chapter: "Chapter 7",
+          en: "What does this chapter suggest about turning belief into action?",
+          vi: "Chương này gợi ý điều gì về việc biến niềm tin thành hành động?"
+        },
+        {
+          id: "w3q2",
+          chapter: "Chapter 8–10",
+          en: "What lesson can you apply when working with your team during Bootcamp?",
+          vi: "Bài học nào bạn có thể áp dụng khi làm việc nhóm trong Bootcamp?"
+        }
+      ]
+    },
+
+    {
+      id: "week4",
+      weekNo: 4,
+      sessionTitle: "Session 4",
+      chapters: "Chapters 11–14",
+      readingStart: "2026-07-06T00:00",
+      reflectionOpen: "2026-07-07T17:00",
+      reflectionClose: "2026-07-10T15:00",
+      discussionStart: "2026-07-10T15:30",
+      discussionEnd: "2026-07-10T16:00",
+      questions: [
+        {
+          id: "w4q1",
+          chapter: "Chapter 11–13",
+          en: "What lesson feels most relevant to your development journey?",
+          vi: "Bài học nào liên quan nhất đến hành trình phát triển của bạn?"
+        },
+        {
+          id: "w4q2",
+          chapter: "Final Application",
+          en: "What commitment will you carry into Talent Uplift Bootcamp 2026?",
+          vi: "Cam kết nào bạn sẽ mang vào Talent Uplift Bootcamp 2026?"
+        }
+      ]
+    }
+  ]
+};
 
 // ===== Runtime State =====
-let program=clone(defaults),responses={},dbReady=false,firebaseInitPromise=null,db,ref,set,get,onValue,testNow=null,selectedWeekId=null,editingWeekId=null,activeCertificate=null,admin=false,finalOnly=false;const el=id=>document.getElementById(id);
+let program=clone(defaults),responses={},dbReady=false,firebaseInitPromise=null,db,ref,set,get,onValue,testNow=null,selectedWeekId=null,editingWeekId=null,activeCertificate=null,admin=false,finalOnly=false,profileStatus={text:"",cls:""};const el=id=>document.getElementById(id);
 let setupStatus={text:"",cls:""},suppressNextProgramNotice=false;
 
 // ===== Utilities =====
 function clone(x){return JSON.parse(JSON.stringify(x))}
 function esc(x){return String(x??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function attr(x){return esc(x).replaceAll("\n","&#10;")}
+function departmentOptions(current=""){const c=String(current||"");let html=`<option value="">Select Department</option>`;if(c&&!DEPARTMENTS.includes(c))html+=`<option value="${attr(c)}" selected>${esc(c)}</option>`;return html+DEPARTMENTS.map(d=>`<option value="${attr(d)}" ${d===c?"selected":""}>${esc(d)}</option>`).join("")}
 function norm(data){const p=clone(defaults);p.weeks=(data?.weeks||[]).map((w,i)=>({id:w.id||`week${i+1}`,weekNo:+(w.weekNo||i+1),sessionTitle:w.sessionTitle||`Session ${i+1}`,chapters:w.chapters||"Chapters",readingStart:w.readingStart,reflectionOpen:w.reflectionOpen,reflectionClose:w.reflectionClose,discussionStart:w.discussionStart,discussionEnd:w.discussionEnd,questions:(w.questions||[]).map((q,j)=>({id:q.id||`${w.id}q${j+1}`,chapter:q.chapter||"Chapter",en:q.en||"Question",vi:q.vi||"Câu hỏi"}))})).sort((a,b)=>a.weekNo-b.weekNo);p.testMode=!!data?.testMode;p.testBackup=data?.testBackup?clone(data.testBackup):null;return p}
 function loadLocal(){try{const p=localStorage.getItem(LOCAL_PROGRAM);if(p)program=norm(JSON.parse(p));const r=localStorage.getItem(LOCAL_RESP);if(r)responses=JSON.parse(r)||{}}catch(e){}}
 function saveLocal(){localStorage.setItem(LOCAL_PROGRAM,JSON.stringify(program));localStorage.setItem(LOCAL_RESP,JSON.stringify(responses))}
 function setSetupStatus(text,cls=""){setupStatus={text,cls};renderSetupStatus()}
 function renderSetupStatus(){const m=el("setupSyncMsg");if(!m)return;if(!setupStatus.text){m.style.display="none";m.className="msg";m.textContent="";return}m.style.display="block";m.className=`msg ${setupStatus.cls||""}`;m.textContent=setupStatus.text}
+function setProfileStatus(text,cls=""){profileStatus={text,cls};renderProfileStatus()}
+function renderProfileStatus(){const m=el("profileMsg");if(!m)return;if(!profileStatus.text){m.style.display="none";m.className="";m.textContent="";return}m.style.display="block";m.className=`msg ${profileStatus.cls||""}`;m.textContent=profileStatus.text}
 function safeRender(){try{render()}catch(e){console.error("Render failed",e);setSetupStatus("Page render failed. Please refresh the page and check Console.","error")}}
 
 // ===== Firebase Init =====
@@ -1173,17 +1304,17 @@ function b(st){let map={submitted:["submitted","Submitted"],open:["open","Open"]
 function selected(){return program.weeks.find(w=>w.id===selectedWeekId)||prog(p()).done.at(-1)||program.weeks[0]}
 
 // ===== Main Render Functions =====
-function render(){logo();journey();detail();phaseCard();form();if(admin){adminSetup();dataView()}renderSetupStatus();updateTestToggleButton()}
+function render(){logo();journey();detail();phaseCard();form();if(admin){adminSetup();dataView()}renderSetupStatus();renderProfileStatus();updateTestToggleButton()}
 function logo(){let img=el("bootcampLogo"),fb=el("logoFallback");img.src=HEADER_LOGO_URL;img.onload=()=>{img.style.display="block";fb.style.display="none"};img.onerror=()=>{img.style.display="none";fb.style.display="block"}}
 function journey(){const pp=p(),ac=action(pp),sel=selected();el("journeyList").innerHTML=program.weeks.map(w=>{const r=resp(w,pp),st=r?"submitted":ac.week?.id===w.id&&ac.mode==="form"?"open":phase(w);let cls=`week ${r?"completed":""} ${ac.week?.id===w.id&&!r?"action":""} ${sel?.id===w.id?"selected":""}`;let helper=r?`Submitted on ${fmt(r.updatedAt||r.submittedAt)}.`:st==="open"?"Submit now to unlock the next week.":st==="reading"?`Reflection opens ${fmt(w.reflectionOpen)}.`:st==="upcoming"?"Upcoming": "Closed";return`<div class="${cls}" data-w="${w.id}"><div class="top"><div><h3>Week ${w.weekNo}</h3><div class="session-name">${esc(w.sessionTitle)}</div><p class="chapter-line"><strong>${esc(w.chapters)}</strong></p></div>${b(st)}</div><p>Reflection Meeting: ${dateOnly(w.discussionStart)}</p></div>`}).join("");document.querySelectorAll("[data-w]").forEach(c=>c.onclick=()=>{selectedWeekId=c.dataset.w;journey();detail()})}
 function detail(){const w=selected(),pp=p(),r=resp(w,pp),shell=el("journeyDetailShell"),root=el("journeyDetail");if(!w||!pp||!r){shell.classList.remove("open");root.innerHTML="";return}shell.classList.add("open");const attemptCount=r.submissionCount||r.attempts?.length||1;const left=`<div class="chips"><span class="chip">📚 ${esc(w.chapters)}</span><span class="chip">🕒 ${fmt(r.updatedAt||r.submittedAt)}</span><span class="chip">📝 ${attemptCount} submit(s)</span><span class="chip">🪪 ${esc(r.certificateId)}</span></div>${(r.answers||[]).map((a,i)=>`<div class="answer"><div class="label">Question ${i+1} · ${esc(a.chapter)}</div><p class="q">${esc(a.questionEn)}</p><p class="v">${esc(a.questionVi)}</p><div class="body">${esc(a.answer)}</div></div>`).join("")}`;const canEdit=now()<parse(w.reflectionClose);const right=`<div class="msg success">Submission found. You can reopen the passport snapshot for this week.</div><div class="actions"><button id="passportBtn" class="orange">View Passport for Week ${w.weekNo}</button>${canEdit?`<button id="editWeekBtn" class="secondary">Edit Answers</button>`:""}</div><div class="msg">If you used another browser/name format, save the matching profile and try again.</div>`;root.innerHTML=`<div class="detail-grid"><div class="panel"><div style="display:flex;justify-content:space-between;gap:12px"><div><h3>Week ${w.weekNo} · ${esc(w.sessionTitle)}</h3><p class="sub">Submitted reflection review</p></div>${b("submitted")}</div>${left}</div><div class="panel"><h3>Week Snapshot</h3><p class="sub">Reflection: ${fmt(w.reflectionOpen)} → ${fmt(w.reflectionClose)}</p><div class="chips"><span class="chip">💬 Teams: ${fmt(w.discussionStart)} → ${fmt(w.discussionEnd)}</span></div>${right}</div></div>`;el("passportBtn").onclick=()=>passport(r,w);const editBtn=el("editWeekBtn");if(editBtn)editBtn.onclick=()=>editWeek(w.id)}
 function editWeek(id){editingWeekId=id;selectedWeekId=id;form();journey();detail();setTimeout(()=>el("reflectionRoot")?.scrollIntoView({behavior:"smooth",block:"start"}),80)}
 function phaseCard(){const ac=action(p()),card=el("phaseCard"),lab=el("phaseLabel"),title=el("phaseTitle"),desc=el("phaseDescription"),meta=el("phaseMeta");if(ac.mode==="all"){card.className="card phase closed";lab.textContent="Completed";title.textContent="All reflections completed";desc.textContent="Review submitted weeks from Reading Journey.";meta.innerHTML=`<span class="chip">✅ ${ac.done.length} / ${ac.weeks.length}</span>`;return}let w=ac.week,ph=ac.mode==="waiting"?phase(w):"open";card.className=`card phase ${ph}`;if(ac.mode==="waiting"){lab.textContent=ph==="reading"?"Reading":"Upcoming";title.textContent=`Reading Focus: Week ${w.weekNo}`;desc.textContent=`Please spend your time to read ${w.chapters}. The reflection submission will open at ${fmt(w.reflectionOpen)}.`}else{lab.textContent="Open";title.textContent=`Reading Focus: Week ${w.weekNo} · ${w.sessionTitle}`;desc.textContent=ac.catchUp?`Complete Week ${w.weekNo} first to unlock the next checkpoint.`:`Submit your reflection before ${fmt(w.reflectionClose)}.`}meta.innerHTML=`<span class="chip">📚 ${esc(w.chapters)}</span><span class="chip">📝 ${fmt(w.reflectionOpen)} → ${fmt(w.reflectionClose)}</span><span class="chip">💬 ${fmt(w.discussionStart)} → ${fmt(w.discussionEnd)}</span>`}
-function profile(pp){pp=pp||p()||{};return`<div class="profile"><div class="row"><div><label>Full Name</label><input id="fullNameInput" value="${attr(pp.fullName||"")}" placeholder="Your full name"></div><div><label>Department</label><input id="departmentInput" value="${attr(pp.department||"")}" placeholder="Your department"></div></div><div class="actions"><button id="saveProfileBtn" class="secondary">Save My Info</button></div></div>`}
-function bindProfile(){let x=el("saveProfileBtn");if(x)x.onclick=()=>{let n=el("fullNameInput").value.trim(),d=el("departmentInput").value.trim();if(!n||!d)return alert("Please enter Full Name and Department.");saveP(n,d);render()}}
+function profile(pp){pp=pp||p()||{};return`<div class="profile"><div class="row"><div><label>Full Name</label><input id="fullNameInput" value="${attr(pp.fullName||"")}" placeholder="Your full name"></div><div><label>Department</label><select id="departmentInput">${departmentOptions(pp.department||"")}</select></div></div><div class="actions"><button id="saveProfileBtn" class="secondary">Save My Info</button></div><div id="profileMsg" style="display:none"></div></div>`}
+function bindProfile(){let x=el("saveProfileBtn");if(x)x.onclick=()=>{let n=el("fullNameInput").value.trim(),d=el("departmentInput").value.trim();if(!n||!d){setProfileStatus("Please enter Full Name and Department.","error");return}saveP(n,d);setProfileStatus("Your information has been saved. Future submissions will use this profile.","success");render()}}
 
 // ===== Reflection Form, Edit Answers & Submit History =====
-function form(){const root=el("reflectionRoot"),intro=el("formIntro"),pp=p(),ac=action(pp);let editW=editingWeekId?program.weeks.find(x=>x.id===editingWeekId):null;if(editW&&(!pp||!resp(editW,pp)))editW=editingWeekId=null;if(ac.mode==="all"&&!editW){intro.textContent="";root.innerHTML=`${profile(pp)}<button id="latest" class="orange">Open My Passport</button>`;bindProfile();el("latest").onclick=()=>{const saved=p()||{};passport(resp(ac.week,saved)||{fullName:saved.fullName||"Participant",department:saved.department||"",participantKey:key(saved),certificateId:`TUBR-PASSPORT-${key(saved).slice(0,12).toUpperCase()}`,updatedAt:new Date().toISOString()},ac.week)};return}let w=editW||ac.week;if(!editW&&ac.mode==="waiting"){intro.textContent="";root.innerHTML=`${profile(pp)}<div class="msg warn">Please read ${esc(w.chapters)}. Reflection opens ${fmt(w.reflectionOpen)}.</div>`;bindProfile();return}let r=resp(w,pp),ans={};r?.answers?.forEach(a=>ans[a.questionId]=a.answer);const attemptCount=r?(r.submissionCount||r.attempts?.length||1):0;intro.textContent=editW?`Editing submitted answers for Week ${w.weekNo}`:"";root.innerHTML=`<div class="profile"><div class="row"><div><label>Full Name</label><input id="fullNameInput" value="${attr(pp?.fullName||"")}" placeholder="Your full name"></div><div><label>Department</label><input id="departmentInput" value="${attr(pp?.department||"")}" placeholder="Your department"></div></div><div class="msg">Answers will be saved to <strong>${esc(w.sessionTitle)} · ${esc(w.chapters)}</strong>.${r?` This update will be recorded as submit #${attemptCount+1}.`:""}</div></div>${w.questions.map((q,i)=>`<div class="question"><span class="chapter">${esc(q.chapter)}</span><p class="q-en">${i+1}. ${esc(q.en)}</p><p class="q-vi">${esc(q.vi)}</p><textarea data-q="${attr(q.id)}" placeholder="Write your reflection here...">${esc(ans[q.id]||"")}</textarea></div>`).join("")}<div class="actions"><button id="submitBtn" class="orange">${r?"Update Reflection & Passport":"Submit Reflection & Update Passport"}</button>${r?`<button id="viewPass" class="secondary">View Passport</button>`:""}${editW?`<button id="cancelEdit" class="secondary">Cancel Edit</button>`:""}</div><div id="formMsg"></div>`;el("submitBtn").onclick=()=>submit(w);if(r)el("viewPass").onclick=()=>passport(r,w);const cancel=el("cancelEdit");if(cancel)cancel.onclick=()=>{editingWeekId=null;render()}}
+function form(){const root=el("reflectionRoot"),intro=el("formIntro"),pp=p(),ac=action(pp);let editW=editingWeekId?program.weeks.find(x=>x.id===editingWeekId):null;if(editW&&(!pp||!resp(editW,pp)))editW=editingWeekId=null;if(ac.mode==="all"&&!editW){intro.textContent="";root.innerHTML=`${profile(pp)}<button id="latest" class="orange">Open My Passport</button>`;bindProfile();el("latest").onclick=()=>{const saved=p()||{};passport(resp(ac.week,saved)||{fullName:saved.fullName||"Participant",department:saved.department||"",participantKey:key(saved),certificateId:`TUBR-PASSPORT-${key(saved).slice(0,12).toUpperCase()}`,updatedAt:new Date().toISOString()},ac.week)};return}let w=editW||ac.week;if(!editW&&ac.mode==="waiting"){intro.textContent="";root.innerHTML=`${profile(pp)}<div class="msg warn">Please read ${esc(w.chapters)}. Reflection opens ${fmt(w.reflectionOpen)}.</div>`;bindProfile();return}let r=resp(w,pp),ans={};r?.answers?.forEach(a=>ans[a.questionId]=a.answer);const attemptCount=r?(r.submissionCount||r.attempts?.length||1):0;intro.textContent=editW?`Editing submitted answers for Week ${w.weekNo}`:"";root.innerHTML=`<div class="profile"><div class="row"><div><label>Full Name</label><input id="fullNameInput" value="${attr(pp?.fullName||"")}" placeholder="Your full name"></div><div><label>Department</label><select id="departmentInput">${departmentOptions(pp?.department||"")}</select></div></div><div class="msg">Answers will be saved to <strong>${esc(w.sessionTitle)} · ${esc(w.chapters)}</strong>.${r?` This update will be recorded as submit #${attemptCount+1}.`:""}</div></div>${w.questions.map((q,i)=>`<div class="question"><span class="chapter">${esc(q.chapter)}</span><p class="q-en">${i+1}. ${esc(q.en)}</p><p class="q-vi">${esc(q.vi)}</p><textarea data-q="${attr(q.id)}" placeholder="Write your reflection here...">${esc(ans[q.id]||"")}</textarea></div>`).join("")}<div class="actions"><button id="submitBtn" class="orange">${r?"Update Reflection & Passport":"Submit Reflection & Update Passport"}</button>${r?`<button id="viewPass" class="secondary">View Passport</button>`:""}${editW?`<button id="cancelEdit" class="secondary">Cancel Edit</button>`:""}</div><div id="formMsg"></div>`;el("submitBtn").onclick=()=>submit(w);if(r)el("viewPass").onclick=()=>passport(r,w);const cancel=el("cancelEdit");if(cancel)cancel.onclick=()=>{editingWeekId=null;render()}}
 function summary(a,b,c){return""}
 function msg(t,cls=""){let m=el("formMsg");if(m)m.innerHTML=`<div class="msg ${cls}">${esc(t)}</div>`}
 async function submit(w){let n=el("fullNameInput").value.trim(),d=el("departmentInput").value.trim();if(!n||!d)return msg("Please complete Full Name and Department.","error");let pp=saveP(n,d),k=key(pp),answers=w.questions.map(q=>{let ta=document.querySelector(`textarea[data-q="${CSS.escape(q.id)}"]`);return{questionId:q.id,chapter:q.chapter,questionEn:q.en,questionVi:q.vi,answer:ta?.value.trim()||""}});if(answers.some(a=>!a.answer))return msg("Please answer all questions.","error");let ex=responses?.[w.id]?.[k],nowIso=new Date().toISOString(),attempts=Array.isArray(ex?.attempts)?ex.attempts.slice():ex?[{attemptNo:1,answers:ex.answers||[],submittedAt:ex.submittedAt||ex.updatedAt||nowIso}]:[];let attemptNo=attempts.length+1;attempts.push({attemptNo,answers,submittedAt:nowIso});let r={participantKey:k,fullName:pp.fullName,department:pp.department,weekId:w.id,weekNo:w.weekNo,sessionTitle:w.sessionTitle,chapters:w.chapters,answers,attempts,submissionCount:attempts.length,certificateId:ex?.certificateId||`TUBR-PASSPORT-${k.slice(0,12).toUpperCase()}`,submittedAt:ex?.submittedAt||nowIso,updatedAt:nowIso};responses[w.id]=responses[w.id]||{};responses[w.id][k]=r;saveLocal();if(dbReady)try{await set(ref(db,`${DB_ROOT}/responses/${w.id}/${k}`),r)}catch(e){}selectedWeekId=w.id;editingWeekId=null;msg(`Saved as submit #${attemptNo}. Passport ready below.`,"success");passport(r,w);render()}
