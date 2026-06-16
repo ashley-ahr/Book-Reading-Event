@@ -4,7 +4,7 @@
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
   <title>
-   Book Reading & Reflection Event
+   Book Reading & Reflection Event - Participant
   </title>
   <style>
    
@@ -943,146 +943,6 @@ th {
     </div>
    </section>
   </main>
-  <footer class="admin-shell" id="adminShell">
-   <div class="admin-trigger" id="adminTrigger">
-   </div>
-   <div class="login">
-    <input id="passInput" placeholder="Organizer passcode" type="password"/>
-    <button id="unlockBtn">
-     Organizer Access
-    </button>
-    <button class="secondary" id="lockBtn" style="display:none">
-     Lock
-    </button>
-   </div>
-   <section class="admin" id="adminPanel">
-    <div class="tabs">
-     <button class="tab active" data-tab="setup">
-      Program Setup
-     </button>
-     <button class="tab" data-tab="profile">
-      Profile Data
-     </button>
-     <button class="tab" data-tab="data">
-      Reflection Data
-     </button>
-     <button class="tab" data-tab="testing">
-      Test Time
-     </button>
-    </div>
-    <div class="admin-view active" id="adminSetupView">
-     <div class="admin-section">
-      <h3>
-       Organizer Setup
-      </h3>
-      <p class="hint">
-       Edit schedule and bilingual questions. Click Save Program Setup to sync across devices via Firebase.
-      </p>
-      <div class="actions">
-       <button class="orange" id="saveProgramBtn">
-        Save Program Setup
-       </button>
-       <button id="addWeekBtn">
-        Add Week
-       </button>
-       <button class="danger" id="resetProgramBtn">
-        Reset to Default Setup
-       </button>
-      </div>
-      <div class="msg" id="setupSyncMsg" style="display:none"></div>
-     </div>
-     <div id="weekEditorRoot">
-     </div>
-    </div>
-    <div class="admin-view" id="adminProfileView">
-     <div class="admin-section">
-      <h3>
-       Profile Data View
-      </h3>
-      <p class="hint">
-       View saved participant profiles and PIN history. The latest saved PIN is marked as Current PIN.
-      </p>
-      <div class="actions">
-       <button class="orange" id="exportProfileCsvBtn">
-        Export Profile CSV
-       </button>
-       <button class="secondary" id="toggleCurrentPinBtn">
-        View Current PIN Only
-       </button>
-       <button class="danger" id="clearAllPinBtn">
-        Clear All PIN Data
-       </button>
-      </div>
-      <div class="msg" id="profileDataSummary">
-      </div>
-     </div>
-     <div class="table-wrap" id="profileDataTableWrap">
-     </div>
-    </div>
-    <div class="admin-view" id="adminDataView">
-     <div class="admin-section">
-      <h3>
-       Reflection Data View
-      </h3>
-      <div class="row">
-       <div>
-        <label>
-         Week / Session
-        </label>
-        <select id="dataWeekFilter">
-        </select>
-       </div>
-       <div style="display:flex;align-items:end;gap:8px;flex-wrap:wrap">
-        <button class="orange" id="exportCsvBtn">
-         Export CSV
-        </button>
-        <button class="secondary" id="toggleFinalBtn">
-         View Final Submission
-        </button>
-        <button class="danger" id="refreshDataBtn">
-         Clear All Data
-        </button>
-       </div>
-      </div>
-      <div class="msg" id="dataSummary">
-      </div>
-     </div>
-     <div class="table-wrap" id="dataTableWrap">
-     </div>
-    </div>
-    <div class="admin-view" id="adminTestingView">
-     <div class="admin-section">
-      <h3>
-       Test Current Time
-      </h3>
-      <p class="hint">
-       Use for preview only.
-      </p>
-      <div class="actions">
-       <button class="orange" id="openAllWeeksBtn2">
-        🧪 Open All Weeks for Test
-       </button>
-      </div>
-      <div class="row" style="margin-top:18px">
-       <div>
-        <label>
-         Test Date & Time
-        </label>
-        <input id="testTimeInput" type="datetime-local"/>
-       </div>
-       <div style="display:flex;align-items:end;gap:8px;flex-wrap:wrap">
-        <button class="orange" id="applyTestTimeBtn">
-         Apply Test Time
-        </button>
-        <button class="secondary" id="resetRealTimeBtn">
-         Reset to Real Time
-        </button>
-       </div>
-      </div>
-     </div>
-    </div>
-   </section>
-  </footer>
   <script>
    
 // ===== Firebase Config =====
@@ -1098,7 +958,7 @@ const firebaseConfig = {
 };
 
 // ===== Constants & Default Reading Plan =====
-const PASS="TUB2026",DB_ROOT="bookReadingEvents/tub2026/start-with-why-v2",LOCAL_PROGRAM="tubook:book-reading-event:v1:program",LOCAL_RESP="tubook:book-reading-event:v1:responses",HEADER_LOGO_URL="assets/bootcamp-logo-white.png",BOOTCAMP_LOGO_URL="assets/bootcamp-logo.png",AHR_LOGO_URL="assets/ahr-logo.png",PASSPORT_STAMP_URL="assets/passport.png";
+const PASS="",DB_ROOT="bookReadingEvents/tub2026/start-with-why-v2",LOCAL_PROGRAM="tubook:book-reading-event:v1:program",LOCAL_RESP="tubook:book-reading-event:v1:responses",HEADER_LOGO_URL="assets/bootcamp-logo-white.png",BOOTCAMP_LOGO_URL="assets/bootcamp-logo.png",AHR_LOGO_URL="assets/ahr-logo.png",PASSPORT_STAMP_URL="assets/passport.png";
 const DEPARTMENTS=[
   "Asia Human Resources",
   "Engineering",
@@ -1714,7 +1574,81 @@ async function clearAllData(){if(!confirm("Delete ALL submitted reflection data?
 async function resetProgramSetup(){if(!confirm("Reset setup?"))return;program=clone(defaults);program.testMode=false;program.testBackup=null;saveLocal();safeRender();if(admin)adminSetup();updateTestToggleButton();await syncProgramToFirebase("Default setup restored and synced to Firebase.")}
 
 // ===== Event Binding =====
-function bind(){el("downloadCertificateBtn").onclick=download;el("printCertificateBtn").onclick=()=>window.print();el("closeCertificateBtn").onclick=()=>el("certificateWrap").classList.remove("open");let adminClickCount=0,adminClickTimer=null;el("adminTrigger").onclick=()=>{adminClickCount++;clearTimeout(adminClickTimer);adminClickTimer=setTimeout(()=>adminClickCount=0,1200);if(adminClickCount>=5){adminClickCount=0;el("adminShell").classList.add("open");el("passInput").focus()}};el("unlockBtn").onclick=()=>{if(el("passInput").value!==PASS)return alert("Incorrect passcode");admin=true;el("adminPanel").classList.add("open");el("lockBtn").style.display="inline-block";el("adminShell").classList.add("open");adminSetup();profileDataView();dataView();renderSetupStatus()};el("passInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();el("unlockBtn").click()}});el("lockBtn").onclick=()=>{admin=false;el("adminPanel").classList.remove("open");el("lockBtn").style.display="none"};document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".admin-view").forEach(x=>x.classList.remove("active"));t.classList.add("active");el(`admin${t.dataset.tab.charAt(0).toUpperCase()+t.dataset.tab.slice(1)}View`).classList.add("active");if(t.dataset.tab==="profile")profileDataView();if(t.dataset.tab==="data")dataView()});el("saveProgramBtn").onclick=saveProgram;if(el("openAllWeeksBtn"))el("openAllWeeksBtn").onclick=openAll;if(el("openAllWeeksBtn2"))el("openAllWeeksBtn2").onclick=openAll;el("addWeekBtn").onclick=addWeek;el("resetProgramBtn").onclick=resetProgramSetup;el("dataWeekFilter").onchange=dataView;el("exportProfileCsvBtn").onclick=exportProfileCsv;el("toggleCurrentPinBtn").onclick=()=>{profileCurrentOnly=!profileCurrentOnly;profileDataView()};el("clearAllPinBtn").onclick=clearAllPinData;el("exportCsvBtn").onclick=exportCsv;el("toggleFinalBtn").onclick=()=>{finalOnly=!finalOnly;dataView()};el("refreshDataBtn").onclick=clearAllData;el("applyTestTimeBtn").onclick=()=>{if(!el("testTimeInput").value)return;testNow=el("testTimeInput").value;render()};el("resetRealTimeBtn").onclick=()=>{testNow=null;el("testTimeInput").value="";render()}}
+function bind(){
+  const downloadBtn=el("downloadCertificateBtn");
+  if(downloadBtn)downloadBtn.onclick=download;
+
+  const printBtn=el("printCertificateBtn");
+  if(printBtn)printBtn.onclick=()=>window.print();
+
+  const closeBtn=el("closeCertificateBtn");
+  if(closeBtn)closeBtn.onclick=()=>el("certificateWrap")?.classList.remove("open");
+
+  let adminClickCount=0,adminClickTimer=null;
+  const adminTrigger=el("adminTrigger");
+  if(adminTrigger)adminTrigger.onclick=()=>{
+    adminClickCount++;
+    clearTimeout(adminClickTimer);
+    adminClickTimer=setTimeout(()=>adminClickCount=0,1200);
+    if(adminClickCount>=5){
+      adminClickCount=0;
+      el("adminShell")?.classList.add("open");
+      el("passInput")?.focus();
+    }
+  };
+
+  const unlockBtn=el("unlockBtn");
+  if(unlockBtn)unlockBtn.onclick=()=>{
+    if(el("passInput")?.value!==PASS)return alert("Incorrect passcode");
+    admin=true;
+    el("adminPanel")?.classList.add("open");
+    if(el("lockBtn"))el("lockBtn").style.display="inline-block";
+    el("adminShell")?.classList.add("open");
+    adminSetup();
+    profileDataView();
+    dataView();
+    renderSetupStatus();
+  };
+
+  const passInput=el("passInput");
+  if(passInput)passInput.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){
+      e.preventDefault();
+      el("unlockBtn")?.click();
+    }
+  });
+
+  const lockBtn=el("lockBtn");
+  if(lockBtn)lockBtn.onclick=()=>{
+    admin=false;
+    el("adminPanel")?.classList.remove("open");
+    lockBtn.style.display="none";
+  };
+
+  document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".admin-view").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    el(`admin${t.dataset.tab.charAt(0).toUpperCase()+t.dataset.tab.slice(1)}View`)?.classList.add("active");
+    if(t.dataset.tab==="profile")profileDataView();
+    if(t.dataset.tab==="data")dataView();
+  });
+
+  if(el("saveProgramBtn"))el("saveProgramBtn").onclick=saveProgram;
+  if(el("openAllWeeksBtn"))el("openAllWeeksBtn").onclick=openAll;
+  if(el("openAllWeeksBtn2"))el("openAllWeeksBtn2").onclick=openAll;
+  if(el("addWeekBtn"))el("addWeekBtn").onclick=addWeek;
+  if(el("resetProgramBtn"))el("resetProgramBtn").onclick=resetProgramSetup;
+  if(el("dataWeekFilter"))el("dataWeekFilter").onchange=dataView;
+  if(el("exportProfileCsvBtn"))el("exportProfileCsvBtn").onclick=exportProfileCsv;
+  if(el("toggleCurrentPinBtn"))el("toggleCurrentPinBtn").onclick=()=>{profileCurrentOnly=!profileCurrentOnly;profileDataView()};
+  if(el("clearAllPinBtn"))el("clearAllPinBtn").onclick=clearAllPinData;
+  if(el("exportCsvBtn"))el("exportCsvBtn").onclick=exportCsv;
+  if(el("toggleFinalBtn"))el("toggleFinalBtn").onclick=()=>{finalOnly=!finalOnly;dataView()};
+  if(el("refreshDataBtn"))el("refreshDataBtn").onclick=clearAllData;
+  if(el("applyTestTimeBtn"))el("applyTestTimeBtn").onclick=()=>{if(!el("testTimeInput")?.value)return;testNow=el("testTimeInput").value;render()};
+  if(el("resetRealTimeBtn"))el("resetRealTimeBtn").onclick=()=>{testNow=null;if(el("testTimeInput"))el("testTimeInput").value="";render()};
+}
 bind();loadLocal();render();firebaseInitPromise=initFirebase();setInterval(render,30000);
 
   </script>
