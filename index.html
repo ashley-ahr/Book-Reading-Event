@@ -480,6 +480,16 @@ main {
   gap:12px;
   margin-bottom:12px
 }
+.profile-action-row {
+  display:block;
+  margin-bottom:12px
+}
+input.profile-readonly {
+  background:#eaf1fb;
+  border-color:#c9d6ea;
+  color:var(--text);
+  cursor:default
+}
 label {
   display:block;
   margin:0 0 7px;
@@ -950,6 +960,9 @@ th {
      <button class="tab active" data-tab="setup">
       Program Setup
      </button>
+     <button class="tab" data-tab="profile">
+      Profile Data
+     </button>
      <button class="tab" data-tab="data">
       Reflection Data
      </button>
@@ -979,6 +992,31 @@ th {
       <div class="msg" id="setupSyncMsg" style="display:none"></div>
      </div>
      <div id="weekEditorRoot">
+     </div>
+    </div>
+    <div class="admin-view" id="adminProfileView">
+     <div class="admin-section">
+      <h3>
+       Profile Data View
+      </h3>
+      <p class="hint">
+       View saved participant profiles and PIN history. The latest saved PIN is marked as Current PIN.
+      </p>
+      <div class="actions">
+       <button class="orange" id="exportProfileCsvBtn">
+        Export Profile CSV
+       </button>
+       <button class="secondary" id="toggleCurrentPinBtn">
+        View Current PIN Only
+       </button>
+       <button class="danger" id="clearAllPinBtn">
+        Clear All PIN Data
+       </button>
+      </div>
+      <div class="msg" id="profileDataSummary">
+      </div>
+     </div>
+     <div class="table-wrap" id="profileDataTableWrap">
      </div>
     </div>
     <div class="admin-view" id="adminDataView">
@@ -1191,7 +1229,7 @@ const defaults = {
 };
 
 // ===== Runtime State =====
-let program=clone(defaults),responses={},dbReady=false,firebaseInitPromise=null,db,ref,set,get,onValue,testNow=null,selectedWeekId=null,editingWeekId=null,activeCertificate=null,admin=false,finalOnly=false,profileStatus={text:"",cls:""};const el=id=>document.getElementById(id);
+let program=clone(defaults),responses={},profiles={},profileLogs={},typingDraft={},profileDraft=null,profileEditMode=false,profileEditUnlocked=false,dbReady=false,firebaseInitPromise=null,db,ref,set,get,onValue,testNow=null,selectedWeekId=null,editingWeekId=null,activeCertificate=null,admin=false,finalOnly=false,profileCurrentOnly=false,profileStatus={text:"",cls:""};const el=id=>document.getElementById(id);
 let setupStatus={text:"",cls:""},suppressNextProgramNotice=false;
 
 // ===== Utilities =====
@@ -1205,8 +1243,41 @@ function saveLocal(){localStorage.setItem(LOCAL_PROGRAM,JSON.stringify(program))
 function setSetupStatus(text,cls=""){setupStatus={text,cls};renderSetupStatus()}
 function renderSetupStatus(){const m=el("setupSyncMsg");if(!m)return;if(!setupStatus.text){m.style.display="none";m.className="msg";m.textContent="";return}m.style.display="block";m.className=`msg ${setupStatus.cls||""}`;m.textContent=setupStatus.text}
 function setProfileStatus(text,cls=""){profileStatus={text,cls};renderProfileStatus()}
-function renderProfileStatus(){const m=el("profileMsg");if(!m)return;if(!profileStatus.text){m.style.display="none";m.className="";m.textContent="";return}m.style.display="block";m.className=`msg ${profileStatus.cls||""}`;m.textContent=profileStatus.text}
+function renderProfileStatus(){const m=el("profileMsg");if(!m)return;const hasCustom=!!profileStatus.text;const text=hasCustom?profileStatus.text:(m.dataset.defaultText||"");const cls=hasCustom?(profileStatus.cls||""):(m.dataset.defaultCls||"");if(!text){m.style.display="none";m.className="";m.textContent="";return}m.style.display="block";m.className=`msg ${cls||""}`.trim();m.textContent=text}
 function safeRender(){try{render()}catch(e){console.error("Render failed",e);setSetupStatus("Page render failed. Please refresh the page and check Console.","error")}}
+function profileKey(pp=p()){return pp?key(pp):"no-profile"}
+function draftId(weekId,pp=p()){return `${weekId}__${profileKey(pp)}`}
+function getDraft(weekId,pp=p()){return typingDraft[draftId(weekId,pp)]||{}}
+function setDraft(weekId,draft,pp=p()){typingDraft[draftId(weekId,pp)]=draft}
+function clearDraft(weekId,pp=p()){delete typingDraft[draftId(weekId,pp)]}
+function captureDraft(){
+  const root=el("reflectionRoot");
+  if(!root)return;
+  const nameInput=el("fullNameInput"),deptInput=el("departmentInput"),pinInput=el("pinInput"),currentPinInput=el("currentPinInput");
+  if(root.dataset?.profileEditor==="1"){
+    const savedProfile=p()||{};
+    profileDraft={
+      fullName:nameInput?.value??profileDraft?.fullName??savedProfile.fullName??"",
+      department:deptInput?.value??profileDraft?.department??savedProfile.department??"",
+      pin:pinInput?.value??profileDraft?.pin??"",
+      currentPin:currentPinInput?.value??profileDraft?.currentPin??""
+    };
+  }
+  const weekId=root.dataset?.weekId;
+  const pp=p();
+  if(!weekId||!pp)return;
+  const draft=getDraft(weekId,pp);
+  root.querySelectorAll("textarea[data-q]").forEach(ta=>{draft[ta.dataset.q]=ta.value});
+  setDraft(weekId,draft,pp);
+}
+function bindDraftInputs(weekId){
+  const root=el("reflectionRoot");
+  if(!root||!weekId)return;
+  root.dataset.weekId=weekId;
+  root.dataset.profileEditor="0";
+  const save=()=>captureDraft();
+  root.querySelectorAll("textarea[data-q]").forEach(ta=>ta.addEventListener("input",save));
+}
 
 // ===== Firebase Init =====
 async function initFirebase(){
@@ -1244,6 +1315,34 @@ async function initFirebase(){
       localStorage.setItem(LOCAL_RESP,JSON.stringify(responses));
       safeRender();
     },e=>console.error("Responses listener failed",e));
+
+    onValue(ref(db,`${DB_ROOT}/profiles`),s=>{
+      profiles=s.val()||{};
+      if(admin){profileDataView();dataView()}
+    },e=>console.error("Profiles listener failed",e));
+
+    onValue(ref(db,`${DB_ROOT}/profileLogs`),s=>{
+      profileLogs=s.val()||{};
+      if(admin)profileDataView();
+    },e=>console.error("Profile logs listener failed",e));
+
+    onValue(ref(db,`${DB_ROOT}/profileResetAt`),s=>{
+      const resetAt=s.val();
+      if(!resetAt)return;
+      const localResetAt=localStorage.getItem("tubook:profileResetAt");
+      if(localResetAt===String(resetAt))return;
+      localStorage.setItem("tubook:profileResetAt",String(resetAt));
+      localStorage.removeItem("tubook:participant");
+      typingDraft={};
+      profileDraft=null;
+      profileEditMode=false;
+      profileEditUnlocked=false;
+      selectedWeekId=null;
+      editingWeekId=null;
+      activeCertificate=null;
+      setProfileStatus("PIN data was reset. Please save your profile again.","warn");
+      safeRender();
+    },e=>console.error("Profile reset listener failed",e));
   }catch(e){
     console.error("Firebase init failed",e);
     dbReady=false;
@@ -1286,6 +1385,28 @@ async function syncProgramToFirebase(successMessage="Saved locally and synced to
     return false;
   }
 }
+async function saveProfileRecord(profile){
+  if(!profile?.fullName||!profile?.department)return;
+  const participantKey=key(profile);
+  let previous=profiles?.[participantKey]||null;
+  let saveNo=Number(previous?.saveCount||0)+1;
+  if(dbReady){
+    try{
+      const snap=await get(ref(db,`${DB_ROOT}/profiles/${participantKey}`));
+      const remote=snap.val();
+      if(remote?.saveCount)saveNo=Number(remote.saveCount)+1;
+    }catch(e){console.warn("Firebase profile count read failed",e)}
+  }
+  const payload={fullName:profile.fullName,department:profile.department,pin:profile.pin||"",participantKey,saveCount:saveNo,updatedAt:new Date().toISOString()};
+  profiles[participantKey]=payload;
+  profileLogs[participantKey]=profileLogs[participantKey]||{};
+  profileLogs[participantKey][`save_${String(saveNo).padStart(3,"0")}`]={...payload,saveNo};
+  if(!dbReady)return;
+  try{
+    await set(ref(db,`${DB_ROOT}/profiles/${participantKey}`),payload);
+    await set(ref(db,`${DB_ROOT}/profileLogs/${participantKey}/save_${String(saveNo).padStart(3,"0")}`),{...payload,saveNo});
+  }catch(e){console.warn("Firebase profile save blocked",e)}
+}
 function parse(v){return new Date(v)}
 function fmt(v){if(!v)return"--";const d=parse(v);return isNaN(d)?v:d.toLocaleString("en-GB",{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}
 function dateOnly(v){if(!v)return"--";const d=parse(v);return isNaN(d)?v:d.toLocaleDateString("en-GB",{weekday:"short",day:"2-digit",month:"short"})}
@@ -1294,30 +1415,152 @@ function phase(w,t=now()){if(t<parse(w.readingStart))return"upcoming";if(t<parse
 
 // ===== Participant, Progress & Status Helpers =====
 function p(){try{return JSON.parse(localStorage.getItem("tubook:participant")||"null")}catch(e){return null}}
-function saveP(n,d){const obj={fullName:n.trim(),department:d.trim()};localStorage.setItem("tubook:participant",JSON.stringify(obj));return obj}
+function saveP(n,d,pin){const obj={fullName:n.trim(),department:d.trim(),pin:String(pin||"").trim()};localStorage.setItem("tubook:participant",JSON.stringify(obj));return obj}
+function validPin(pin){return /^\d{4}$/.test(String(pin||"").trim())}
 function slug(x){return String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")||"participant"}
 function key(pp=p()){return `${slug(pp?.fullName)}__${slug(pp?.department)}`}
 function resp(w,pp=p()){return pp?responses?.[w.id]?.[key(pp)]||null:null}
 function prog(pp=p()){const weeks=program.weeks,done=weeks.filter(w=>resp(w,pp)),ids=new Set(done.map(w=>w.id)),first=weeks.find(w=>!ids.has(w.id));return{weeks,done,ids,first}}
 function action(pp=p()){const pr=prog(pp);if(!pr.first)return{mode:"all",week:pr.weeks[pr.weeks.length-1],...pr};const w=pr.first,started=now()>=parse(w.reflectionOpen);return{mode:started?"form":"waiting",week:w,catchUp:started&&phase(w)!=="open",...pr}}
 function b(st){let map={submitted:["submitted","Submitted"],open:["open","Open"],reading:["reading","Reading"],closed:["closed","Closed"],completed:["closed","Closed"],upcoming:["upcoming","Upcoming"]},x=map[st]||map.upcoming;return`<span class="badge ${x[0]}">${x[1]}</span>`}
-function selected(){return program.weeks.find(w=>w.id===selectedWeekId)||prog(p()).done.at(-1)||program.weeks[0]}
+function defaultSelectedWeek(pp=p()){
+  const pr=prog(pp);
+  if(!pr.weeks.length)return null;
+  if(!pp)return pr.weeks[0];
+  if(!pr.first)return pr.done.at(-1)||pr.weeks[0];
+  if(!pr.done.length)return pr.first;
+  return now()>=parse(pr.first.readingStart)?pr.first:(pr.done.at(-1)||pr.first);
+}
+function selected(){return program.weeks.find(w=>w.id===selectedWeekId)||defaultSelectedWeek(p())||program.weeks[0]}
 
 // ===== Main Render Functions =====
-function render(){logo();journey();detail();phaseCard();form();if(admin){adminSetup();dataView()}renderSetupStatus();renderProfileStatus();updateTestToggleButton()}
+function render(){captureDraft();logo();journey();detail();phaseCard();form();if(admin){adminSetup();profileDataView();dataView()}renderSetupStatus();renderProfileStatus();updateTestToggleButton()}
 function logo(){let img=el("bootcampLogo"),fb=el("logoFallback");img.src=HEADER_LOGO_URL;img.onload=()=>{img.style.display="block";fb.style.display="none"};img.onerror=()=>{img.style.display="none";fb.style.display="block"}}
 function journey(){const pp=p(),ac=action(pp),sel=selected();el("journeyList").innerHTML=program.weeks.map(w=>{const r=resp(w,pp),st=r?"submitted":ac.week?.id===w.id&&ac.mode==="form"?"open":phase(w);let cls=`week ${r?"completed":""} ${ac.week?.id===w.id&&!r?"action":""} ${sel?.id===w.id?"selected":""}`;let helper=r?`Submitted on ${fmt(r.updatedAt||r.submittedAt)}.`:st==="open"?"Submit now to unlock the next week.":st==="reading"?`Reflection opens ${fmt(w.reflectionOpen)}.`:st==="upcoming"?"Upcoming": "Closed";return`<div class="${cls}" data-w="${w.id}"><div class="top"><div><h3>Week ${w.weekNo}</h3><div class="session-name">${esc(w.sessionTitle)}</div><p class="chapter-line"><strong>${esc(w.chapters)}</strong></p></div>${b(st)}</div><p>Reflection Meeting: ${dateOnly(w.discussionStart)}</p></div>`}).join("");document.querySelectorAll("[data-w]").forEach(c=>c.onclick=()=>{selectedWeekId=c.dataset.w;journey();detail()})}
 function detail(){const w=selected(),pp=p(),r=resp(w,pp),shell=el("journeyDetailShell"),root=el("journeyDetail");if(!w||!pp||!r){shell.classList.remove("open");root.innerHTML="";return}shell.classList.add("open");const attemptCount=r.submissionCount||r.attempts?.length||1;const left=`<div class="chips"><span class="chip">📚 ${esc(w.chapters)}</span><span class="chip">🕒 ${fmt(r.updatedAt||r.submittedAt)}</span><span class="chip">📝 ${attemptCount} submit(s)</span><span class="chip">🪪 ${esc(r.certificateId)}</span></div>${(r.answers||[]).map((a,i)=>`<div class="answer"><div class="label">Question ${i+1} · ${esc(a.chapter)}</div><p class="q">${esc(a.questionEn)}</p><p class="v">${esc(a.questionVi)}</p><div class="body">${esc(a.answer)}</div></div>`).join("")}`;const canEdit=now()<parse(w.reflectionClose);const right=`<div class="msg success">Submission found. You can reopen the passport snapshot for this week.</div><div class="actions"><button id="passportBtn" class="orange">View Passport for Week ${w.weekNo}</button>${canEdit?`<button id="editWeekBtn" class="secondary">Edit Answers</button>`:""}</div><div class="msg">If you used another browser/name format, save the matching profile and try again.</div>`;root.innerHTML=`<div class="detail-grid"><div class="panel"><div style="display:flex;justify-content:space-between;gap:12px"><div><h3>Week ${w.weekNo} · ${esc(w.sessionTitle)}</h3><p class="sub">Submitted reflection review</p></div>${b("submitted")}</div>${left}</div><div class="panel"><h3>Week Snapshot</h3><p class="sub">Reflection: ${fmt(w.reflectionOpen)} → ${fmt(w.reflectionClose)}</p><div class="chips"><span class="chip">💬 Teams: ${fmt(w.discussionStart)} → ${fmt(w.discussionEnd)}</span></div>${right}</div></div>`;el("passportBtn").onclick=()=>passport(r,w);const editBtn=el("editWeekBtn");if(editBtn)editBtn.onclick=()=>editWeek(w.id)}
 function editWeek(id){editingWeekId=id;selectedWeekId=id;form();journey();detail();setTimeout(()=>el("reflectionRoot")?.scrollIntoView({behavior:"smooth",block:"start"}),80)}
 function phaseCard(){const ac=action(p()),card=el("phaseCard"),lab=el("phaseLabel"),title=el("phaseTitle"),desc=el("phaseDescription"),meta=el("phaseMeta");if(ac.mode==="all"){card.className="card phase closed";lab.textContent="Completed";title.textContent="All reflections completed";desc.textContent="Review submitted weeks from Reading Journey.";meta.innerHTML=`<span class="chip">✅ ${ac.done.length} / ${ac.weeks.length}</span>`;return}let w=ac.week,ph=ac.mode==="waiting"?phase(w):"open";card.className=`card phase ${ph}`;if(ac.mode==="waiting"){lab.textContent=ph==="reading"?"Reading":"Upcoming";title.textContent=`Reading Focus: Week ${w.weekNo}`;desc.textContent=`Please spend your time to read ${w.chapters}. The reflection submission will open at ${fmt(w.reflectionOpen)}.`}else{lab.textContent="Open";title.textContent=`Reading Focus: Week ${w.weekNo} · ${w.sessionTitle}`;desc.textContent=ac.catchUp?`Complete Week ${w.weekNo} first to unlock the next checkpoint.`:`Submit your reflection before ${fmt(w.reflectionClose)}.`}meta.innerHTML=`<span class="chip">📚 ${esc(w.chapters)}</span><span class="chip">📝 ${fmt(w.reflectionOpen)} → ${fmt(w.reflectionClose)}</span><span class="chip">💬 ${fmt(w.discussionStart)} → ${fmt(w.discussionEnd)}</span>`}
-function profile(pp){pp=pp||p()||{};return`<div class="profile"><div class="row"><div><label>Full Name</label><input id="fullNameInput" value="${attr(pp.fullName||"")}" placeholder="Your full name"></div><div><label>Department</label><select id="departmentInput">${departmentOptions(pp.department||"")}</select></div></div><div class="actions"><button id="saveProfileBtn" class="secondary">Save My Info</button></div><div id="profileMsg" style="display:none"></div></div>`}
-function bindProfile(){let x=el("saveProfileBtn");if(x)x.onclick=()=>{let n=el("fullNameInput").value.trim(),d=el("departmentInput").value.trim();if(!n||!d){setProfileStatus("Please enter Full Name and Department.","error");return}saveP(n,d);setProfileStatus("Your information has been saved. Future submissions will use this profile.","success");render()}}
+function profileEditor(pp=p()){
+  const base=profileDraft||pp||{};
+  const isSwitch=!!pp;
+  const defaultMsg=isSwitch?"Save the new profile details and 4-digit PIN. The Reading Journey will reload for this profile.":"Save your profile before starting weekly reflections. Please use the same full name and department for all weekly submissions.";
+  return`<div class="profile"><div class="row"><div><label>Full Name</label><input id="fullNameInput" value="${attr(base.fullName||"")}" placeholder="Your full name"></div><div><label>Department</label><select id="departmentInput">${departmentOptions(base.department||"")}</select></div></div><div class="row"><div><label>4-digit PIN</label><input id="pinInput" type="password" inputmode="numeric" maxlength="4" value="${attr(base.pin||"")}" placeholder="4-digit PIN" autocomplete="new-password"></div></div><div class="profile-action-row"><div class="actions" style="margin-top:0"><button id="saveProfileBtn" class="orange">${isSwitch?"Save New Profile":"Save My Info"}</button>${isSwitch?`<button id="cancelProfileBtn" class="secondary">Cancel</button>`:""}</div></div><div id="profileMsg" data-default-text="${attr(defaultMsg)}" data-default-cls="" style="display:none"></div></div>`
+}
+function profileUnlock(pp=p()){
+  const base=profileDraft||{};
+  const defaultMsg="Enter the current PIN to unlock profile changes.";
+  return`<div class="profile"><div class="row"><div><label>Full Name</label><input class="profile-readonly" value="${attr(pp.fullName)}" readonly tabindex="-1"></div><div><label>Department</label><input class="profile-readonly" value="${attr(pp.department)}" readonly tabindex="-1"></div></div><div class="row"><div><label>Current PIN</label><input id="currentPinInput" type="password" inputmode="numeric" maxlength="4" value="${attr(base.currentPin||"")}" placeholder="Current 4-digit PIN" autocomplete="current-password"></div></div><div class="profile-action-row"><div class="actions" style="margin-top:0"><button id="unlockProfileBtn" class="orange">Unlock Profile Change</button><button id="cancelProfileBtn" class="secondary">Cancel</button></div></div><div id="profileMsg" data-default-text="${attr(defaultMsg)}" data-default-cls="" style="display:none"></div></div>`
+}
+function profileLocked(pp=p()){
+  if(!pp)return profileEditor(pp);
+  const defaultMsg="Please use the same full name, department and PIN for all weekly submissions.";
+  return`<div class="profile"><div class="row"><div><label>Full Name</label><input class="profile-readonly" value="${attr(pp.fullName)}" readonly tabindex="-1"></div><div><label>Department</label><input class="profile-readonly" value="${attr(pp.department)}" readonly tabindex="-1"></div></div><div class="row"><div><label>4-digit PIN</label><input class="profile-readonly" type="password" value="${attr(pp.pin||"")}" readonly tabindex="-1"></div></div><div class="profile-action-row"><div class="actions" style="margin-top:0"><button id="changeProfileBtn" class="orange">Change Profile</button></div></div><div id="profileMsg" data-default-text="${attr(defaultMsg)}" data-default-cls="" style="display:none"></div></div>`
+}
+function bindProfile(){
+  const change=el("changeProfileBtn");
+  if(change)change.onclick=()=>{const saved=p()||{};profileEditMode=true;profileEditUnlocked=!validPin(saved.pin);profileDraft={fullName:saved.fullName||"",department:saved.department||"",pin:"",currentPin:""};editingWeekId=null;selectedWeekId=null;setProfileStatus("","");render()};
+  const unlock=el("unlockProfileBtn");
+  if(unlock)unlock.onclick=()=>{const saved=p();const currentPin=el("currentPinInput")?.value.trim()||"";if(!saved||currentPin!==saved.pin){setProfileStatus("Current PIN is incorrect.","error");return}profileEditUnlocked=true;profileDraft={fullName:saved.fullName||"",department:saved.department||"",pin:"",currentPin:""};setProfileStatus("Profile unlocked. You can now update the profile details.","success");render()};
+  const cancel=el("cancelProfileBtn");
+  if(cancel)cancel.onclick=()=>{profileEditMode=false;profileEditUnlocked=false;profileDraft=null;setProfileStatus("","");render()};
+  const saveBtn=el("saveProfileBtn");
+  if(saveBtn)saveBtn.onclick=async()=>{
+    let n=el("fullNameInput").value.trim(),d=el("departmentInput").value.trim(),newPin=el("pinInput")?.value.trim()||"";
+    if(!n||!d){setProfileStatus("Please enter Full Name and Department.","error");return}
+    if(!validPin(newPin)){setProfileStatus("Please enter a 4-digit PIN.","error");return}
+    const old=p();
+    if(old&&validPin(old.pin)&&!profileEditUnlocked){setProfileStatus("Please unlock profile changes with the current PIN first.","error");return}
+    const profile=saveP(n,d,newPin);
+    profileEditMode=false;
+    profileEditUnlocked=false;
+    profileDraft=null;
+    selectedWeekId=null;
+    editingWeekId=null;
+    activeCertificate=null;
+    await saveProfileRecord(profile);
+    setProfileStatus(old?"Profile updated. The Reading Journey has been reloaded for this profile.":"Your information has been saved. Your Reading Journey is now ready.","success");
+    render();
+  };
+}
 
 // ===== Reflection Form, Edit Answers & Submit History =====
-function form(){const root=el("reflectionRoot"),intro=el("formIntro"),pp=p(),ac=action(pp);let editW=editingWeekId?program.weeks.find(x=>x.id===editingWeekId):null;if(editW&&(!pp||!resp(editW,pp)))editW=editingWeekId=null;if(ac.mode==="all"&&!editW){intro.textContent="";root.innerHTML=`${profile(pp)}<button id="latest" class="orange">Open My Passport</button>`;bindProfile();el("latest").onclick=()=>{const saved=p()||{};passport(resp(ac.week,saved)||{fullName:saved.fullName||"Participant",department:saved.department||"",participantKey:key(saved),certificateId:`TUBR-PASSPORT-${key(saved).slice(0,12).toUpperCase()}`,updatedAt:new Date().toISOString()},ac.week)};return}let w=editW||ac.week;if(!editW&&ac.mode==="waiting"){intro.textContent="";root.innerHTML=`${profile(pp)}<div class="msg warn">Please read ${esc(w.chapters)}. Reflection opens ${fmt(w.reflectionOpen)}.</div>`;bindProfile();return}let r=resp(w,pp),ans={};r?.answers?.forEach(a=>ans[a.questionId]=a.answer);const attemptCount=r?(r.submissionCount||r.attempts?.length||1):0;intro.textContent=editW?`Editing submitted answers for Week ${w.weekNo}`:"";root.innerHTML=`<div class="profile"><div class="row"><div><label>Full Name</label><input id="fullNameInput" value="${attr(pp?.fullName||"")}" placeholder="Your full name"></div><div><label>Department</label><select id="departmentInput">${departmentOptions(pp?.department||"")}</select></div></div><div class="msg">Answers will be saved to <strong>${esc(w.sessionTitle)} · ${esc(w.chapters)}</strong>.${r?` This update will be recorded as submit #${attemptCount+1}.`:""}</div></div>${w.questions.map((q,i)=>`<div class="question"><span class="chapter">${esc(q.chapter)}</span><p class="q-en">${i+1}. ${esc(q.en)}</p><p class="q-vi">${esc(q.vi)}</p><textarea data-q="${attr(q.id)}" placeholder="Write your reflection here...">${esc(ans[q.id]||"")}</textarea></div>`).join("")}<div class="actions"><button id="submitBtn" class="orange">${r?"Update Reflection & Passport":"Submit Reflection & Update Passport"}</button>${r?`<button id="viewPass" class="secondary">View Passport</button>`:""}${editW?`<button id="cancelEdit" class="secondary">Cancel Edit</button>`:""}</div><div id="formMsg"></div>`;el("submitBtn").onclick=()=>submit(w);if(r)el("viewPass").onclick=()=>passport(r,w);const cancel=el("cancelEdit");if(cancel)cancel.onclick=()=>{editingWeekId=null;render()}}
+function form(){
+  const root=el("reflectionRoot"),intro=el("formIntro"),pp=p();
+  if(!pp||profileEditMode||(pp&&!validPin(pp.pin))){
+    root.dataset.weekId="";
+    root.dataset.profileEditor="1";
+    intro.textContent="";
+    if(profileEditMode&&pp&&validPin(pp.pin)&&!profileEditUnlocked){
+      root.innerHTML=profileUnlock(pp);
+    }else{
+      root.innerHTML=profileEditor(pp);
+    }
+    bindProfile();
+    renderProfileStatus();
+    return;
+  }
+
+  const ac=action(pp);
+  let editW=editingWeekId?program.weeks.find(x=>x.id===editingWeekId):null;
+  if(editW&&(!pp||!resp(editW,pp)))editW=editingWeekId=null;
+
+  if(ac.mode==="all"&&!editW){
+    root.dataset.weekId="";
+    root.dataset.profileEditor="0";
+    intro.textContent="";
+    root.innerHTML=`${profileLocked(pp)}<button id="latest" class="orange">Open My Passport</button>`;
+    bindProfile();
+    el("latest").onclick=()=>{const saved=p()||{};passport(resp(ac.week,saved)||{fullName:saved.fullName||"Participant",department:saved.department||"",participantKey:key(saved),certificateId:`TUBR-PASSPORT-${key(saved).slice(0,12).toUpperCase()}`,updatedAt:new Date().toISOString()},ac.week)};
+    return;
+  }
+
+  let w=editW||ac.week;
+  if(!editW&&ac.mode==="waiting"){
+    root.dataset.weekId="";
+    root.dataset.profileEditor="0";
+    intro.textContent="";
+    root.innerHTML=`${profileLocked(pp)}<div class="msg warn">Please read ${esc(w.chapters)}. Reflection opens ${fmt(w.reflectionOpen)}.</div>`;
+    bindProfile();
+    return;
+  }
+
+  let r=resp(w,pp),ans={};
+  r?.answers?.forEach(a=>ans[a.questionId]=a.answer);
+  const draft=getDraft(w.id,pp);
+  const attemptCount=r?(r.submissionCount||r.attempts?.length||1):0;
+  intro.textContent=editW?`Editing submitted answers for Week ${w.weekNo}`:"";
+  root.dataset.weekId=w.id;
+  root.dataset.profileEditor="0";
+  root.innerHTML=`${profileLocked(pp)}${w.questions.map((q,i)=>`<div class="question"><span class="chapter">${esc(q.chapter)}</span><p class="q-en">${i+1}. ${esc(q.en)}</p><p class="q-vi">${esc(q.vi)}</p><textarea data-q="${attr(q.id)}" placeholder="Write your reflection here...">${esc(draft[q.id]??ans[q.id]??"")}</textarea></div>`).join("")}<div class="actions"><button id="submitBtn" class="orange">${r?"Update Reflection & Passport":"Submit Reflection & Update Passport"}</button>${r?`<button id="viewPass" class="secondary">View Passport</button>`:""}${editW?`<button id="cancelEdit" class="secondary">Cancel Edit</button>`:""}</div><div id="formMsg"></div>`;
+  bindProfile();
+  bindDraftInputs(w.id);
+  el("submitBtn").onclick=()=>submit(w);
+  if(r)el("viewPass").onclick=()=>passport(r,w);
+  const cancel=el("cancelEdit");
+  if(cancel)cancel.onclick=()=>{editingWeekId=null;clearDraft(w.id,pp);render()}
+}
 function summary(a,b,c){return""}
 function msg(t,cls=""){let m=el("formMsg");if(m)m.innerHTML=`<div class="msg ${cls}">${esc(t)}</div>`}
-async function submit(w){let n=el("fullNameInput").value.trim(),d=el("departmentInput").value.trim();if(!n||!d)return msg("Please complete Full Name and Department.","error");let pp=saveP(n,d),k=key(pp),answers=w.questions.map(q=>{let ta=document.querySelector(`textarea[data-q="${CSS.escape(q.id)}"]`);return{questionId:q.id,chapter:q.chapter,questionEn:q.en,questionVi:q.vi,answer:ta?.value.trim()||""}});if(answers.some(a=>!a.answer))return msg("Please answer all questions.","error");let ex=responses?.[w.id]?.[k],nowIso=new Date().toISOString(),attempts=Array.isArray(ex?.attempts)?ex.attempts.slice():ex?[{attemptNo:1,answers:ex.answers||[],submittedAt:ex.submittedAt||ex.updatedAt||nowIso}]:[];let attemptNo=attempts.length+1;attempts.push({attemptNo,answers,submittedAt:nowIso});let r={participantKey:k,fullName:pp.fullName,department:pp.department,weekId:w.id,weekNo:w.weekNo,sessionTitle:w.sessionTitle,chapters:w.chapters,answers,attempts,submissionCount:attempts.length,certificateId:ex?.certificateId||`TUBR-PASSPORT-${k.slice(0,12).toUpperCase()}`,submittedAt:ex?.submittedAt||nowIso,updatedAt:nowIso};responses[w.id]=responses[w.id]||{};responses[w.id][k]=r;saveLocal();if(dbReady)try{await set(ref(db,`${DB_ROOT}/responses/${w.id}/${k}`),r)}catch(e){}selectedWeekId=w.id;editingWeekId=null;msg(`Saved as submit #${attemptNo}. Passport ready below.`,"success");passport(r,w);render()}
+async function submit(w){
+  const pp=p();
+  if(!pp?.fullName||!pp?.department||!validPin(pp.pin))return msg("Please save your profile and 4-digit PIN before submitting.","error");
+  let k=key(pp),answers=w.questions.map(q=>{let ta=document.querySelector(`textarea[data-q="${CSS.escape(q.id)}"]`);return{questionId:q.id,chapter:q.chapter,questionEn:q.en,questionVi:q.vi,answer:ta?.value.trim()||""}});
+  if(answers.some(a=>!a.answer))return msg("Please answer all questions.","error");
+  let ex=responses?.[w.id]?.[k],nowIso=new Date().toISOString(),attempts=Array.isArray(ex?.attempts)?ex.attempts.slice():ex?[{attemptNo:1,answers:ex.answers||[],submittedAt:ex.submittedAt||ex.updatedAt||nowIso}]:[];
+  let attemptNo=attempts.length+1;
+  attempts.push({attemptNo,answers,submittedAt:nowIso});
+  let r={participantKey:k,fullName:pp.fullName,department:pp.department,pin:pp.pin||"",weekId:w.id,weekNo:w.weekNo,sessionTitle:w.sessionTitle,chapters:w.chapters,answers,attempts,submissionCount:attempts.length,certificateId:ex?.certificateId||`TUBR-PASSPORT-${k.slice(0,12).toUpperCase()}`,submittedAt:ex?.submittedAt||nowIso,updatedAt:nowIso};
+  responses[w.id]=responses[w.id]||{};
+  responses[w.id][k]=r;
+  clearDraft(w.id,pp);
+  saveLocal();
+  if(dbReady)try{await set(ref(db,`${DB_ROOT}/responses/${w.id}/${k}`),r)}catch(e){}
+  selectedWeekId=w.id;
+  editingWeekId=null;
+  msg(`Saved as submit #${attemptNo}. Passport ready below.`,"success");
+  passport(r,w);
+  render();
+}
 
 // ===== Certificate / Passport Popup & Canvas Drawing =====
 async function passport(r,w){activeCertificate={response:r,week:w};await drawCert(r,w);el("certificateWrap").classList.add("open")}
@@ -1383,9 +1626,87 @@ async function openAll(){
 async function saveProgram(){await syncProgramToFirebase("Saved locally and synced to Firebase.")}
 function addWeek(){let n=program.weeks.length+1;program.weeks.push({id:`week${n}`,weekNo:n,sessionTitle:`Session ${n}`,chapters:"Chapters",readingStart:"2026-06-15T00:00",reflectionOpen:"2026-06-16T17:00",reflectionClose:"2026-06-19T15:00",discussionStart:"2026-06-19T15:30",discussionEnd:"2026-06-19T16:00",questions:[{id:`week${n}q1`,chapter:"Chapter",en:"Reflection question",vi:"Câu hỏi reflection"}]});saveLocal();render()}
 
+// ===== Profile Data View & CSV Export =====
+function profileRows(){
+  const byKey={};
+  Object.entries(profileLogs||{}).forEach(([participantKey,logs])=>{
+    Object.entries(logs||{}).forEach(([logId,r])=>{
+      const row={...r,participantKey:r.participantKey||participantKey,logId,saveNo:Number(r.saveNo||String(logId).replace(/\D/g,"")||1)};
+      byKey[row.participantKey]=byKey[row.participantKey]||[];
+      byKey[row.participantKey].push(row);
+    });
+  });
+  Object.entries(profiles||{}).forEach(([participantKey,r])=>{
+    if(!byKey[participantKey]||!byKey[participantKey].length){
+      byKey[participantKey]=[{...r,participantKey:r.participantKey||participantKey,logId:"current",saveNo:Number(r.saveCount||1)}];
+    }
+  });
+  return Object.values(byKey).flatMap(list=>{
+    list.sort((a,b)=>(a.saveNo||0)-(b.saveNo||0));
+    const latest=Math.max(...list.map(r=>Number(r.saveNo||0)));
+    return list.map(r=>({...r,status:Number(r.saveNo||0)===latest?"Current PIN":`Old PIN #${r.saveNo||1}`}));
+  }).sort((a,b)=>String(b.updatedAt||"").localeCompare(String(a.updatedAt||"")));
+}
+function visibleProfileRows(){const rows=profileRows();return profileCurrentOnly?rows.filter(r=>r.status==="Current PIN"):rows}
+function profileDataView(){
+  const summary=el("profileDataSummary"),wrap=el("profileDataTableWrap"),toggle=el("toggleCurrentPinBtn");
+  if(!summary||!wrap)return;
+  const rows=visibleProfileRows();
+  if(toggle)toggle.textContent=profileCurrentOnly?"View All PIN History":"View Current PIN Only";
+  summary.innerHTML=`<strong>${rows.length}</strong> saved profile record(s) · ${profileCurrentOnly?"current PIN only":"all PIN history"}`;
+  wrap.innerHTML=rows.length?`<table><thead><tr><th>Name</th><th>Department</th><th>4-digit PIN</th><th>Status</th><th>Save #</th><th>Saved At</th><th>Action</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.fullName)}</td><td>${esc(r.department)}</td><td>${esc(r.pin||"")}</td><td>${esc(r.status)}</td><td>${esc(r.saveNo||"")}</td><td>${fmt(r.updatedAt)}</td><td>${r.status==="Current PIN"?"":`<button class="small danger" data-del-old-pin="${esc(r.participantKey)}|${esc(r.logId)}">Delete Old PIN</button>`}</td></tr>`).join("")}</tbody></table>`:`<div class="empty">No saved profiles yet.</div>`;
+  wrap.querySelectorAll("[data-del-old-pin]").forEach(btn=>btn.onclick=()=>{const [participantKey,logId]=btn.dataset.delOldPin.split("|");deleteOldPinRecord(participantKey,logId)});
+}
+async function deleteOldPinRecord(participantKey,logId){
+  if(!participantKey||!logId)return;
+  const row=profileLogs?.[participantKey]?.[logId];
+  if(!row)return;
+  if(!confirm(`Delete old PIN record for ${row.fullName||"this profile"}? This will only remove the old PIN history row.`))return;
+  delete profileLogs[participantKey][logId];
+  if(dbReady)try{await set(ref(db,`${DB_ROOT}/profileLogs/${participantKey}/${logId}`),null)}catch(e){console.warn("Firebase old PIN delete blocked",e)}
+  profileDataView();
+}
+async function clearAllPinData(){
+  if(!confirm("Clear ALL profile PIN data? This will remove Current PINs and old PIN history from Profile Data View, but will not delete Reflection Data."))return;
+  if(!confirm("Please confirm again: clear all PIN data now?"))return;
+  const resetAt=new Date().toISOString();
+  profiles={};
+  profileLogs={};
+  localStorage.removeItem("tubook:participant");
+  localStorage.setItem("tubook:profileResetAt",resetAt);
+  typingDraft={};
+  profileDraft=null;
+  profileEditMode=false;
+  profileEditUnlocked=false;
+  selectedWeekId=null;
+  editingWeekId=null;
+  activeCertificate=null;
+  if(dbReady){
+    try{
+      await set(ref(db,`${DB_ROOT}/profiles`),null);
+      await set(ref(db,`${DB_ROOT}/profileLogs`),null);
+      await set(ref(db,`${DB_ROOT}/profileResetAt`),resetAt);
+    }catch(e){console.warn("Firebase clear PIN data blocked",e)}
+  }
+  setProfileStatus("All PIN data has been cleared. Please save your profile again.","success");
+  profileDataView();
+  render();
+}
+function exportProfileCsv(){
+  const rows=visibleProfileRows();
+  const csv="name,department,pin,status,save_no,saved_at\n"+rows.map(r=>[r.fullName,r.department,r.pin||"",r.status,r.saveNo||"",r.updatedAt||""].map(x=>`"${String(x||"").replaceAll('"','""')}"`).join(",")).join("\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=profileCurrentOnly?"profile-current-pins.csv":"profile-pin-history.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 // ===== Reflection Data View & CSV Export =====
 function dataRows(f){let ids=f==="all"?Object.keys(responses):[f];let records=ids.flatMap(id=>Object.values(responses[id]||{}));return records.flatMap(r=>{let attempts=Array.isArray(r.attempts)&&r.attempts.length?r.attempts:[{attemptNo:r.submissionCount||1,answers:r.answers||[],submittedAt:r.updatedAt||r.submittedAt}];if(finalOnly){let a=attempts[attempts.length-1]||{};return[{...r,answers:a.answers||r.answers||[],attemptNo:a.attemptNo||attempts.length,attemptSubmittedAt:a.submittedAt||r.updatedAt||r.submittedAt,isFinal:true}]}return attempts.map((a,i)=>({...r,answers:a.answers||[],attemptNo:a.attemptNo||i+1,attemptSubmittedAt:a.submittedAt||r.submittedAt,isFinal:i===attempts.length-1}))})}
 function recordSummary(r){return (r.answers||[]).map(a=>`${a.chapter||""}: ${a.answer||""}`).join(" | ")}
+function pinForRecord(r){return r.pin||profiles?.[r.participantKey]?.pin||""}
 function dataView(){let f=el("dataWeekFilter"),val=f.value||"all";f.innerHTML=`<option value="all">All Weeks</option>`+program.weeks.map(w=>`<option value="${w.id}">Week ${w.weekNo} · ${esc(w.chapters)}</option>`).join("");f.value=[...f.options].some(o=>o.value===val)?val:"all";let rows=dataRows(f.value);let toggle=el("toggleFinalBtn");if(toggle)toggle.textContent=finalOnly?"View All Submissions":"View Final Submission";el("dataSummary").innerHTML=`<strong>${rows.length}</strong> record(s) · ${finalOnly?"final submissions only":"all submission attempts"}`;el("dataTableWrap").innerHTML=rows.length?`<table><thead><tr><th>Week</th><th>Name</th><th>Department</th><th>Submit #</th><th>Submitted At</th><th>Final?</th><th>Summary</th><th>Action</th></tr></thead><tbody>${rows.map(r=>`<tr><td>Week ${esc(r.weekNo)}<br>${esc(r.chapters||"")}</td><td>${esc(r.fullName)}</td><td>${esc(r.department)}</td><td>${esc(r.attemptNo||1)}</td><td>${fmt(r.attemptSubmittedAt||r.updatedAt||r.submittedAt)}</td><td>${r.isFinal?"Yes":""}</td><td>${(r.answers||[]).map(a=>`<strong>${esc(a.chapter)}:</strong> ${esc(a.answer)}`).join("<br><br>")}</td><td><button class="small danger" data-del-record="${esc(r.weekId)}|${esc(r.participantKey)}">Delete</button></td></tr>`).join("")}</tbody></table>`:`<div class="empty">No submissions yet.</div>`;document.querySelectorAll("[data-del-record]").forEach(btn=>btn.onclick=()=>{const [weekId,participantKey]=btn.dataset.delRecord.split("|");deleteRecord(weekId,participantKey)})}
 function exportCsv(){let rows=dataRows(el("dataWeekFilter").value),csv="week,name,department,attempt_no,submitted_at,is_final,summary\n"+rows.map(r=>[r.weekNo,r.fullName,r.department,r.attemptNo||1,r.attemptSubmittedAt||r.updatedAt||r.submittedAt,r.isFinal?"Yes":"",recordSummary(r)].map(x=>`"${String(x||"").replaceAll('"','""')}"`).join(",")).join("\n"),blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=finalOnly?"reflection-final-submissions.csv":"reflection-all-submissions.csv";a.click();URL.revokeObjectURL(a.href)}
 async function deleteRecord(weekId,participantKey){if(!weekId||!participantKey)return;if(!confirm("Delete this submitted record?"))return;if(responses[weekId]){delete responses[weekId][participantKey];if(!Object.keys(responses[weekId]).length)delete responses[weekId]}saveLocal();if(dbReady)try{await set(ref(db,`${DB_ROOT}/responses/${weekId}/${participantKey}`),null)}catch(e){console.warn("Firebase delete blocked",e)}dataView();render()}
@@ -1393,7 +1714,7 @@ async function clearAllData(){if(!confirm("Delete ALL submitted reflection data?
 async function resetProgramSetup(){if(!confirm("Reset setup?"))return;program=clone(defaults);program.testMode=false;program.testBackup=null;saveLocal();safeRender();if(admin)adminSetup();updateTestToggleButton();await syncProgramToFirebase("Default setup restored and synced to Firebase.")}
 
 // ===== Event Binding =====
-function bind(){el("downloadCertificateBtn").onclick=download;el("printCertificateBtn").onclick=()=>window.print();el("closeCertificateBtn").onclick=()=>el("certificateWrap").classList.remove("open");let adminClickCount=0,adminClickTimer=null;el("adminTrigger").onclick=()=>{adminClickCount++;clearTimeout(adminClickTimer);adminClickTimer=setTimeout(()=>adminClickCount=0,1200);if(adminClickCount>=5){adminClickCount=0;el("adminShell").classList.add("open");el("passInput").focus()}};el("unlockBtn").onclick=()=>{if(el("passInput").value!==PASS)return alert("Incorrect passcode");admin=true;el("adminPanel").classList.add("open");el("lockBtn").style.display="inline-block";el("adminShell").classList.add("open");adminSetup();dataView();renderSetupStatus()};el("passInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();el("unlockBtn").click()}});el("lockBtn").onclick=()=>{admin=false;el("adminPanel").classList.remove("open");el("lockBtn").style.display="none"};document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".admin-view").forEach(x=>x.classList.remove("active"));t.classList.add("active");el(`admin${t.dataset.tab.charAt(0).toUpperCase()+t.dataset.tab.slice(1)}View`).classList.add("active");if(t.dataset.tab==="data")dataView()});el("saveProgramBtn").onclick=saveProgram;if(el("openAllWeeksBtn"))el("openAllWeeksBtn").onclick=openAll;if(el("openAllWeeksBtn2"))el("openAllWeeksBtn2").onclick=openAll;el("addWeekBtn").onclick=addWeek;el("resetProgramBtn").onclick=resetProgramSetup;el("dataWeekFilter").onchange=dataView;el("exportCsvBtn").onclick=exportCsv;el("toggleFinalBtn").onclick=()=>{finalOnly=!finalOnly;dataView()};el("refreshDataBtn").onclick=clearAllData;el("applyTestTimeBtn").onclick=()=>{if(!el("testTimeInput").value)return;testNow=el("testTimeInput").value;render()};el("resetRealTimeBtn").onclick=()=>{testNow=null;el("testTimeInput").value="";render()}}
+function bind(){el("downloadCertificateBtn").onclick=download;el("printCertificateBtn").onclick=()=>window.print();el("closeCertificateBtn").onclick=()=>el("certificateWrap").classList.remove("open");let adminClickCount=0,adminClickTimer=null;el("adminTrigger").onclick=()=>{adminClickCount++;clearTimeout(adminClickTimer);adminClickTimer=setTimeout(()=>adminClickCount=0,1200);if(adminClickCount>=5){adminClickCount=0;el("adminShell").classList.add("open");el("passInput").focus()}};el("unlockBtn").onclick=()=>{if(el("passInput").value!==PASS)return alert("Incorrect passcode");admin=true;el("adminPanel").classList.add("open");el("lockBtn").style.display="inline-block";el("adminShell").classList.add("open");adminSetup();profileDataView();dataView();renderSetupStatus()};el("passInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();el("unlockBtn").click()}});el("lockBtn").onclick=()=>{admin=false;el("adminPanel").classList.remove("open");el("lockBtn").style.display="none"};document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".admin-view").forEach(x=>x.classList.remove("active"));t.classList.add("active");el(`admin${t.dataset.tab.charAt(0).toUpperCase()+t.dataset.tab.slice(1)}View`).classList.add("active");if(t.dataset.tab==="profile")profileDataView();if(t.dataset.tab==="data")dataView()});el("saveProgramBtn").onclick=saveProgram;if(el("openAllWeeksBtn"))el("openAllWeeksBtn").onclick=openAll;if(el("openAllWeeksBtn2"))el("openAllWeeksBtn2").onclick=openAll;el("addWeekBtn").onclick=addWeek;el("resetProgramBtn").onclick=resetProgramSetup;el("dataWeekFilter").onchange=dataView;el("exportProfileCsvBtn").onclick=exportProfileCsv;el("toggleCurrentPinBtn").onclick=()=>{profileCurrentOnly=!profileCurrentOnly;profileDataView()};el("clearAllPinBtn").onclick=clearAllPinData;el("exportCsvBtn").onclick=exportCsv;el("toggleFinalBtn").onclick=()=>{finalOnly=!finalOnly;dataView()};el("refreshDataBtn").onclick=clearAllData;el("applyTestTimeBtn").onclick=()=>{if(!el("testTimeInput").value)return;testNow=el("testTimeInput").value;render()};el("resetRealTimeBtn").onclick=()=>{testNow=null;el("testTimeInput").value="";render()}}
 bind();loadLocal();render();firebaseInitPromise=initFirebase();setInterval(render,30000);
 
   </script>
