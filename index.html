@@ -379,6 +379,27 @@ main {
   line-height:1.45;
   margin:0 0 6px
 }
+
+.week .top > div:first-child {
+  min-width:0;
+  flex:1 1 auto;
+}
+.week .top .badge {
+  flex:0 0 auto;
+  margin-left:auto;
+}
+.week h3,
+.week .session-name {
+  overflow-wrap:anywhere;
+}
+.answer .q {
+  font-size:15px;
+  line-height:1.42;
+}
+.q-en {
+  font-size:15px;
+  line-height:1.42;
+}
 .answer .v {
   font-size:13px;
   font-style:italic;
@@ -795,6 +816,11 @@ th {
   background:#fff;
   border-radius:var(--radius)
 }
+
+.answer .q,
+.q-en {
+  font-weight:700;
+}
 @media(max-width:900px) {
   .row,.summary,.detail-grid,.editor-grid,.editor-grid.three {
     grid-template-columns:1fr
@@ -889,7 +915,7 @@ th {
       Reading Journey
      </h2>
      <p class="sub">
-      Click submitted weeks to review answers and passport snapshots.
+      Click submitted weeks to review answers and certificate snapshots.
      </p>
      <div class="weeks" id="journeyList">
      </div>
@@ -929,7 +955,7 @@ th {
     </canvas>
     <div class="actions" style="justify-content:center">
      <button class="orange" id="downloadCertificateBtn">
-      Download Passport PNG
+      Download Certificate PNG
      </button>
      <button class="secondary" id="printCertificateBtn">
       Print / Save as PDF
@@ -939,7 +965,7 @@ th {
      </button>
     </div>
     <div class="msg success" style="text-align:center;max-width:760px;margin:12px auto 0">
-     Please upload your reflection passport to the MS Teams group to confirm your weekly completion.
+     Please upload your reflection certificate to the MS Teams group to confirm your weekly completion.
     </div>
    </section>
   </main>
@@ -958,7 +984,7 @@ const firebaseConfig = {
 };
 
 // ===== Constants & Default Reading Plan =====
-const PASS="",DB_ROOT="bookReadingEvents/tub2026/start-with-why-v2",LOCAL_PROGRAM="tubook:book-reading-event:v1:program",LOCAL_RESP="tubook:book-reading-event:v1:responses",HEADER_LOGO_URL="assets/bootcamp-logo-white.png",BOOTCAMP_LOGO_URL="assets/bootcamp-logo.png",AHR_LOGO_URL="assets/ahr-logo.png",PASSPORT_STAMP_URL="assets/passport.png";
+const PASS="",DB_ROOT="bookReadingEvents/tub2026/start-with-why-v2",LOCAL_PROGRAM="tubook:book-reading-event:v1:program",LOCAL_RESP="tubook:book-reading-event:v1:responses",HEADER_LOGO_URL="assets/bootcamp-logo-white.png",BOOTCAMP_LOGO_URL="assets/bootcamp-logo.png",AHR_LOGO_URL="assets/ahr-logo.png",CERTIFICATE_STAMP_URL="assets/passport.png";
 const DEPARTMENTS=[
   "Asia Human Resources",
   "Engineering",
@@ -1297,7 +1323,7 @@ function selected(){return program.weeks.find(w=>w.id===selectedWeekId)||default
 function render(){captureDraft();logo();journey();detail();phaseCard();form();if(admin){adminSetup();profileDataView();dataView()}renderSetupStatus();renderProfileStatus();updateTestToggleButton()}
 function logo(){let img=el("bootcampLogo"),fb=el("logoFallback");img.src=HEADER_LOGO_URL;img.onload=()=>{img.style.display="block";fb.style.display="none"};img.onerror=()=>{img.style.display="none";fb.style.display="block"}}
 function journey(){const pp=p(),ac=action(pp),sel=selected();el("journeyList").innerHTML=program.weeks.map(w=>{const r=resp(w,pp),st=r?"submitted":ac.week?.id===w.id&&ac.mode==="form"?"open":phase(w);let cls=`week ${r?"completed":""} ${ac.week?.id===w.id&&!r?"action":""} ${sel?.id===w.id?"selected":""}`;let helper=r?`Submitted on ${fmt(r.updatedAt||r.submittedAt)}.`:st==="open"?"Submit now to unlock the next week.":st==="reading"?`Reflection opens ${fmt(w.reflectionOpen)}.`:st==="upcoming"?"Upcoming": "Closed";return`<div class="${cls}" data-w="${w.id}"><div class="top"><div><h3>Week ${w.weekNo}</h3><div class="session-name">${esc(w.sessionTitle)}</div><p class="chapter-line"><strong>${esc(w.chapters)}</strong></p></div>${b(st)}</div><p>Reflection Meeting: ${dateOnly(w.discussionStart)}</p></div>`}).join("");document.querySelectorAll("[data-w]").forEach(c=>c.onclick=()=>{selectedWeekId=c.dataset.w;journey();detail()})}
-function detail(){const w=selected(),pp=p(),r=resp(w,pp),shell=el("journeyDetailShell"),root=el("journeyDetail");if(!w||!pp||!r){shell.classList.remove("open");root.innerHTML="";return}shell.classList.add("open");const attemptCount=r.submissionCount||r.attempts?.length||1;const left=`<div class="chips"><span class="chip">📚 ${esc(w.chapters)}</span><span class="chip">🕒 ${fmt(r.updatedAt||r.submittedAt)}</span><span class="chip">📝 ${attemptCount} submit(s)</span><span class="chip">🪪 ${esc(r.certificateId)}</span></div>${(r.answers||[]).map((a,i)=>`<div class="answer"><div class="label">Question ${i+1} · ${esc(a.chapter)}</div><p class="q">${esc(a.questionEn)}</p><p class="v">${esc(a.questionVi)}</p><div class="body">${esc(a.answer)}</div></div>`).join("")}`;const canEdit=now()<parse(w.reflectionClose);const right=`<div class="msg success">Submission found. You can reopen the passport snapshot for this week.</div><div class="actions"><button id="passportBtn" class="orange">View Passport for Week ${w.weekNo}</button>${canEdit?`<button id="editWeekBtn" class="secondary">Edit Answers</button>`:""}</div><div class="msg">If you used another browser/name format, save the matching profile and try again.</div>`;root.innerHTML=`<div class="detail-grid"><div class="panel"><div style="display:flex;justify-content:space-between;gap:12px"><div><h3>Week ${w.weekNo} · ${esc(w.sessionTitle)}</h3><p class="sub">Submitted reflection review</p></div>${b("submitted")}</div>${left}</div><div class="panel"><h3>Week Snapshot</h3><p class="sub">Reflection: ${fmt(w.reflectionOpen)} → ${fmt(w.reflectionClose)}</p><div class="chips"><span class="chip">💬 Teams: ${fmt(w.discussionStart)} → ${fmt(w.discussionEnd)}</span></div>${right}</div></div>`;el("passportBtn").onclick=()=>passport(r,w);const editBtn=el("editWeekBtn");if(editBtn)editBtn.onclick=()=>editWeek(w.id)}
+function detail(){const w=selected(),pp=p(),r=resp(w,pp),shell=el("journeyDetailShell"),root=el("journeyDetail");if(!w||!pp||!r){shell.classList.remove("open");root.innerHTML="";return}shell.classList.add("open");const attemptCount=r.submissionCount||r.attempts?.length||1;const left=`<div class="chips"><span class="chip">📚 ${esc(w.chapters)}</span><span class="chip">🕒 ${fmt(r.updatedAt||r.submittedAt)}</span><span class="chip">📝 ${attemptCount} submit(s)</span><span class="chip">🪪 ${esc(r.certificateId)}</span></div>${(r.answers||[]).map((a,i)=>`<div class="answer"><div class="label">Question ${i+1} · ${esc(a.chapter)}</div><p class="q">${esc(a.questionEn)}</p><p class="v">${esc(a.questionVi)}</p><div class="body">${esc(a.answer)}</div></div>`).join("")}`;const canEdit=now()<parse(w.reflectionClose);const right=`<div class="msg success">Submission found. You can reopen the certificate snapshot for this week.</div><div class="actions"><button id="certificateBtn" class="orange">View Certificate for Week ${w.weekNo}</button>${canEdit?`<button id="editWeekBtn" class="secondary">Edit Answers</button>`:""}</div><div class="msg">If you used another browser/name format, save the matching profile and try again.</div>`;root.innerHTML=`<div class="detail-grid"><div class="panel"><div style="display:flex;justify-content:space-between;gap:12px"><div><h3>Week ${w.weekNo} · ${esc(w.sessionTitle)}</h3><p class="sub">Submitted reflection review</p></div>${b("submitted")}</div>${left}</div><div class="panel"><h3>Week Snapshot</h3><p class="sub">Reflection: ${fmt(w.reflectionOpen)} → ${fmt(w.reflectionClose)}</p><div class="chips"><span class="chip">💬 Teams: ${fmt(w.discussionStart)} → ${fmt(w.discussionEnd)}</span></div>${right}</div></div>`;el("certificateBtn").onclick=()=>certificate(r,w);const editBtn=el("editWeekBtn");if(editBtn)editBtn.onclick=()=>editWeek(w.id)}
 function editWeek(id){editingWeekId=id;selectedWeekId=id;form();journey();detail();setTimeout(()=>el("reflectionRoot")?.scrollIntoView({behavior:"smooth",block:"start"}),80)}
 function phaseCard(){const ac=action(p()),card=el("phaseCard"),lab=el("phaseLabel"),title=el("phaseTitle"),desc=el("phaseDescription"),meta=el("phaseMeta");if(ac.mode==="all"){card.className="card phase closed";lab.textContent="Completed";title.textContent="All reflections completed";desc.textContent="Review submitted weeks from Reading Journey.";meta.innerHTML=`<span class="chip">✅ ${ac.done.length} / ${ac.weeks.length}</span>`;return}let w=ac.week,ph=ac.mode==="waiting"?phase(w):"open";card.className=`card phase ${ph}`;if(ac.mode==="waiting"){lab.textContent=ph==="reading"?"Reading":"Upcoming";title.textContent=`Reading Focus: Week ${w.weekNo}`;desc.textContent=`Please spend your time to read ${w.chapters}. The reflection submission will open at ${fmt(w.reflectionOpen)}.`}else{lab.textContent="Open";title.textContent=`Reading Focus: Week ${w.weekNo} · ${w.sessionTitle}`;desc.textContent=ac.catchUp?`Complete Week ${w.weekNo} first to unlock the next checkpoint.`:`Submit your reflection before ${fmt(w.reflectionClose)}.`}meta.innerHTML=`<span class="chip">📚 ${esc(w.chapters)}</span><span class="chip">📝 ${fmt(w.reflectionOpen)} → ${fmt(w.reflectionClose)}</span><span class="chip">💬 ${fmt(w.discussionStart)} → ${fmt(w.discussionEnd)}</span>`}
 function profileEditor(pp=p()){
@@ -1368,9 +1394,9 @@ function form(){
     root.dataset.weekId="";
     root.dataset.profileEditor="0";
     intro.textContent="";
-    root.innerHTML=`${profileLocked(pp)}<button id="latest" class="orange">Open My Passport</button>`;
+    root.innerHTML=`${profileLocked(pp)}<button id="latest" class="orange">Open My Certificate</button>`;
     bindProfile();
-    el("latest").onclick=()=>{const saved=p()||{};passport(resp(ac.week,saved)||{fullName:saved.fullName||"Participant",department:saved.department||"",participantKey:key(saved),certificateId:`TUBR-PASSPORT-${key(saved).slice(0,12).toUpperCase()}`,updatedAt:new Date().toISOString()},ac.week)};
+    el("latest").onclick=()=>{const saved=p()||{};certificate(resp(ac.week,saved)||{fullName:saved.fullName||"Participant",department:saved.department||"",participantKey:key(saved),certificateId:`TUBR-CERT-${key(saved).slice(0,12).toUpperCase()}`,updatedAt:new Date().toISOString()},ac.week)};
     return;
   }
 
@@ -1391,11 +1417,11 @@ function form(){
   intro.textContent=editW?`Editing submitted answers for Week ${w.weekNo}`:"";
   root.dataset.weekId=w.id;
   root.dataset.profileEditor="0";
-  root.innerHTML=`${profileLocked(pp)}${w.questions.map((q,i)=>`<div class="question"><span class="chapter">${esc(q.chapter)}</span><p class="q-en">${i+1}. ${esc(q.en)}</p><p class="q-vi">${esc(q.vi)}</p><textarea data-q="${attr(q.id)}" placeholder="Write your reflection here...">${esc(draft[q.id]??ans[q.id]??"")}</textarea></div>`).join("")}<div class="actions"><button id="submitBtn" class="orange">${r?"Update Reflection & Passport":"Submit Reflection & Update Passport"}</button>${r?`<button id="viewPass" class="secondary">View Passport</button>`:""}${editW?`<button id="cancelEdit" class="secondary">Cancel Edit</button>`:""}</div><div id="formMsg"></div>`;
+  root.innerHTML=`${profileLocked(pp)}${w.questions.map((q,i)=>`<div class="question"><span class="chapter">${esc(q.chapter)}</span><p class="q-en">${i+1}. ${esc(q.en)}</p><p class="q-vi">${esc(q.vi)}</p><textarea data-q="${attr(q.id)}" placeholder="Write your reflection here...">${esc(draft[q.id]??ans[q.id]??"")}</textarea></div>`).join("")}<div class="actions"><button id="submitBtn" class="orange">${r?"Update Reflection & Certificate":"Submit Reflection & Update Certificate"}</button>${r?`<button id="viewCert" class="secondary">View Certificate</button>`:""}${editW?`<button id="cancelEdit" class="secondary">Cancel Edit</button>`:""}</div><div id="formMsg"></div>`;
   bindProfile();
   bindDraftInputs(w.id);
   el("submitBtn").onclick=()=>submit(w);
-  if(r)el("viewPass").onclick=()=>passport(r,w);
+  if(r)el("viewCert").onclick=()=>certificate(r,w);
   const cancel=el("cancelEdit");
   if(cancel)cancel.onclick=()=>{editingWeekId=null;clearDraft(w.id,pp);render()}
 }
@@ -1409,7 +1435,7 @@ async function submit(w){
   let ex=responses?.[w.id]?.[k],nowIso=new Date().toISOString(),attempts=Array.isArray(ex?.attempts)?ex.attempts.slice():ex?[{attemptNo:1,answers:ex.answers||[],submittedAt:ex.submittedAt||ex.updatedAt||nowIso}]:[];
   let attemptNo=attempts.length+1;
   attempts.push({attemptNo,answers,submittedAt:nowIso});
-  let r={participantKey:k,fullName:pp.fullName,department:pp.department,pin:pp.pin||"",weekId:w.id,weekNo:w.weekNo,sessionTitle:w.sessionTitle,chapters:w.chapters,answers,attempts,submissionCount:attempts.length,certificateId:ex?.certificateId||`TUBR-PASSPORT-${k.slice(0,12).toUpperCase()}`,submittedAt:ex?.submittedAt||nowIso,updatedAt:nowIso};
+  let r={participantKey:k,fullName:pp.fullName,department:pp.department,pin:pp.pin||"",weekId:w.id,weekNo:w.weekNo,sessionTitle:w.sessionTitle,chapters:w.chapters,answers,attempts,submissionCount:attempts.length,certificateId:ex?.certificateId||`TUBR-CERT-${k.slice(0,12).toUpperCase()}`,submittedAt:ex?.submittedAt||nowIso,updatedAt:nowIso};
   responses[w.id]=responses[w.id]||{};
   responses[w.id][k]=r;
   clearDraft(w.id,pp);
@@ -1417,28 +1443,28 @@ async function submit(w){
   if(dbReady)try{await set(ref(db,`${DB_ROOT}/responses/${w.id}/${k}`),r)}catch(e){}
   selectedWeekId=w.id;
   editingWeekId=null;
-  msg(`Saved as submit #${attemptNo}. Passport ready below.`,"success");
-  passport(r,w);
+  msg(`Saved as submit #${attemptNo}. Certificate ready below.`,"success");
+  certificate(r,w);
   render();
 }
 
-// ===== Certificate / Passport Popup & Canvas Drawing =====
-async function passport(r,w){activeCertificate={response:r,week:w};await drawCert(r,w);el("certificateWrap").classList.add("open")}
+// ===== Certificate Popup & Canvas Drawing =====
+async function certificate(r,w){activeCertificate={response:r,week:w};await drawCert(r,w);el("certificateWrap").classList.add("open")}
 function img(src){return new Promise(res=>{let i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src})}
 function contain(ctx,i,x,y,w,h){if(!i)return false;let ratio=Math.min(w/i.width,h/i.height),dw=i.width*ratio,dh=i.height*ratio;ctx.drawImage(i,x+(w-dw)/2,y+(h-dh)/2,dw,dh);return true}
 function wrapText(ctx,text,x,y,maxWidth,lineHeight,maxLines=3){const words=String(text||"").split(" ");let line="",lines=[];for(let n=0;n<words.length;n++){const test=line+words[n]+" ";if(ctx.measureText(test).width>maxWidth&&n>0){lines.push(line.trim());line=words[n]+" ";if(lines.length>=maxLines-1)break}else line=test}lines.push(line.trim());lines.slice(0,maxLines).forEach((ln,i)=>ctx.fillText(ln,x,y+i*lineHeight));return y+lines.length*lineHeight}
-async function drawCert(r,w){let c=el("certificateCanvas"),ctx=c.getContext("2d"),W=c.width,H=c.height;ctx.clearRect(0,0,W,H);let [boot,ahr,passportStamp]=await Promise.all([img(BOOTCAMP_LOGO_URL),img(AHR_LOGO_URL),img(PASSPORT_STAMP_URL)]),weeks=program.weeks,k=r.participantKey||key({fullName:r.fullName,department:r.department}),target=w.weekNo,doneSet=new Set(weeks.filter(x=>x.weekNo<=target&&responses?.[x.id]?.[k]).map(x=>x.weekNo));doneSet.add(target);ctx.fillStyle="#fffdf8";ctx.fillRect(0,0,W,H);let g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,"rgba(242,99,34,.09)");g.addColorStop(.58,"rgba(255,255,255,0)");g.addColorStop(1,"rgba(6,42,99,.08)");ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.strokeStyle="#062a63";ctx.lineWidth=8;ctx.strokeRect(54,54,W-108,H-108);ctx.strokeStyle="#f26322";ctx.lineWidth=2;ctx.setLineDash([12,12]);ctx.strokeRect(84,84,W-168,H-168);ctx.setLineDash([]);contain(ctx,boot,110,108,250,88)||(()=>{ctx.textAlign="left";ctx.fillStyle="#062a63";ctx.font="bold 31px Arial";ctx.fillText("TALENT UPLIFT",118,148);ctx.fillStyle="#f26322";ctx.font="bold 20px Arial";ctx.fillText("BOOTCAMP 2026",118,174)})();contain(ctx,ahr,W-360,108,250,88)||(()=>{ctx.textAlign="right";ctx.fillStyle="#0b3a48";ctx.font="bold 27px Arial";ctx.fillText("Asia Human Resources",W-118,148)})();ctx.textAlign="center";ctx.fillStyle="#f26322";ctx.font="bold 18px Arial";ctx.fillText("START WITH WHY · SIMON SINEK",W/2,142);ctx.fillStyle="#f26322";ctx.font="bold 34px Arial";ctx.fillText("READING REFLECTION CERTIFICATE",W/2,276);ctx.fillStyle="#667085";ctx.font="22px Arial";ctx.fillText("This certifies that",W/2,350);ctx.fillStyle="#062a63";ctx.font="bold 72px Georgia";ctx.fillText(r.fullName||"Participant",W/2,438);ctx.strokeStyle="rgba(6,42,99,.18)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(390,472);ctx.lineTo(W-390,472);ctx.stroke();ctx.fillStyle="#344054";ctx.font="22px Arial";wrapText(ctx,`has completed Week ${w.weekNo} Reflection for Start with Why — ${w.chapters} as part of Talent Uplift Bootcamp 2026.`,W/2,540,930,36,3);ctx.fillStyle="#0b3a48";ctx.font="bold 27px Arial";ctx.fillText(`${w.sessionTitle}`,W/2,636);let y=738,start=520,gap=185;ctx.strokeStyle="rgba(6,42,99,.14)";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(start,y);ctx.lineTo(start+gap*(weeks.length-1),y);ctx.stroke();weeks.forEach((x,i)=>{let cx=start+gap*i,ok=doneSet.has(x.weekNo);ctx.textAlign="center";ctx.beginPath();ctx.arc(cx,y,38,0,Math.PI*2);ctx.fillStyle=ok?"#18a058":"#fff";ctx.fill();ctx.strokeStyle=ok?"#18a058":"#d0d5dd";ctx.lineWidth=4;ctx.stroke();if(ok){ctx.strokeStyle="#fff";ctx.lineWidth=6;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(cx-14,y+1);ctx.lineTo(cx-3,y+13);ctx.lineTo(cx+18,y-12);ctx.stroke()}else{ctx.fillStyle="#98a2b3";ctx.font="bold 20px Arial";ctx.fillText(String(x.weekNo),cx,y+7)}ctx.fillStyle="#062a63";ctx.font="bold 16px Arial";ctx.fillText(`Week ${x.weekNo}`,cx,y+60);ctx.fillStyle="#667085";ctx.font="14px Arial";wrapText(ctx,x.chapters||"",cx,y+80,128,17,2)});let d=new Date(r.updatedAt||r.submittedAt);ctx.textAlign="left";ctx.fillStyle="#667085";ctx.font="17px Arial";ctx.fillText("Issued Date",132,846);ctx.fillStyle="#172033";ctx.font="bold 22px Arial";ctx.fillText(d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}),132,876);ctx.textAlign="right";ctx.fillStyle="#667085";ctx.font="17px Arial";ctx.fillText("Certificate ID",W-132,846);ctx.fillStyle="#172033";ctx.font="bold 19px Arial";ctx.fillText(r.certificateId||"",W-132,876)}
+async function drawCert(r,w){let c=el("certificateCanvas"),ctx=c.getContext("2d"),W=c.width,H=c.height;ctx.clearRect(0,0,W,H);let [boot,ahr,certificateStamp]=await Promise.all([img(BOOTCAMP_LOGO_URL),img(AHR_LOGO_URL),img(CERTIFICATE_STAMP_URL)]),weeks=program.weeks,k=r.participantKey||key({fullName:r.fullName,department:r.department}),target=w.weekNo,doneSet=new Set(weeks.filter(x=>x.weekNo<=target&&responses?.[x.id]?.[k]).map(x=>x.weekNo));doneSet.add(target);ctx.fillStyle="#fffdf8";ctx.fillRect(0,0,W,H);let g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,"rgba(242,99,34,.09)");g.addColorStop(.58,"rgba(255,255,255,0)");g.addColorStop(1,"rgba(6,42,99,.08)");ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.strokeStyle="#062a63";ctx.lineWidth=8;ctx.strokeRect(54,54,W-108,H-108);ctx.strokeStyle="#f26322";ctx.lineWidth=2;ctx.setLineDash([12,12]);ctx.strokeRect(84,84,W-168,H-168);ctx.setLineDash([]);contain(ctx,boot,110,108,250,88)||(()=>{ctx.textAlign="left";ctx.fillStyle="#062a63";ctx.font="bold 31px Arial";ctx.fillText("TALENT UPLIFT",118,148);ctx.fillStyle="#f26322";ctx.font="bold 20px Arial";ctx.fillText("BOOTCAMP 2026",118,174)})();contain(ctx,ahr,W-360,108,250,88)||(()=>{ctx.textAlign="right";ctx.fillStyle="#0b3a48";ctx.font="bold 27px Arial";ctx.fillText("Asia Human Resources",W-118,148)})();ctx.textAlign="center";ctx.fillStyle="#f26322";ctx.font="bold 18px Arial";ctx.fillText("START WITH WHY · SIMON SINEK",W/2,142);ctx.fillStyle="#f26322";ctx.font="bold 34px Arial";ctx.fillText("READING REFLECTION CERTIFICATE",W/2,276);ctx.fillStyle="#667085";ctx.font="22px Arial";ctx.fillText("This certifies that",W/2,350);ctx.fillStyle="#062a63";ctx.font="bold 72px Georgia";ctx.fillText(r.fullName||"Participant",W/2,438);ctx.strokeStyle="rgba(6,42,99,.18)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(390,472);ctx.lineTo(W-390,472);ctx.stroke();ctx.fillStyle="#344054";ctx.font="22px Arial";wrapText(ctx,`has completed Week ${w.weekNo} Reflection for Start with Why — ${w.chapters} as part of Talent Uplift Bootcamp 2026.`,W/2,540,930,36,3);ctx.fillStyle="#0b3a48";ctx.font="bold 27px Arial";ctx.fillText(`${w.sessionTitle}`,W/2,636);let y=738,start=520,gap=185;ctx.strokeStyle="rgba(6,42,99,.14)";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(start,y);ctx.lineTo(start+gap*(weeks.length-1),y);ctx.stroke();weeks.forEach((x,i)=>{let cx=start+gap*i,ok=doneSet.has(x.weekNo);ctx.textAlign="center";ctx.beginPath();ctx.arc(cx,y,38,0,Math.PI*2);ctx.fillStyle=ok?"#18a058":"#fff";ctx.fill();ctx.strokeStyle=ok?"#18a058":"#d0d5dd";ctx.lineWidth=4;ctx.stroke();if(ok){ctx.strokeStyle="#fff";ctx.lineWidth=6;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(cx-14,y+1);ctx.lineTo(cx-3,y+13);ctx.lineTo(cx+18,y-12);ctx.stroke()}else{ctx.fillStyle="#98a2b3";ctx.font="bold 20px Arial";ctx.fillText(String(x.weekNo),cx,y+7)}ctx.fillStyle="#062a63";ctx.font="bold 16px Arial";ctx.fillText(`Week ${x.weekNo}`,cx,y+60);ctx.fillStyle="#667085";ctx.font="14px Arial";wrapText(ctx,x.chapters||"",cx,y+80,128,17,2)});let d=new Date(r.updatedAt||r.submittedAt);ctx.textAlign="left";ctx.fillStyle="#667085";ctx.font="17px Arial";ctx.fillText("Issued Date",132,846);ctx.fillStyle="#172033";ctx.font="bold 22px Arial";ctx.fillText(d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}),132,876);ctx.textAlign="right";ctx.fillStyle="#667085";ctx.font="17px Arial";ctx.fillText("Certificate ID",W-132,846);ctx.fillStyle="#172033";ctx.font="bold 19px Arial";ctx.fillText(r.certificateId||"",W-132,876)}
 function download(){
   try{
     const canvas=el("certificateCanvas");
     const a=document.createElement("a");
-    a.download=`Reading-Reflection-Passport-${slug(activeCertificate?.response?.fullName||"participant")}.png`;
+    a.download=`Reading-Reflection-Certificate-${slug(activeCertificate?.response?.fullName||"participant")}.png`;
     a.href=canvas.toDataURL("image/png");
     document.body.appendChild(a);
     a.click();
     a.remove();
   }catch(error){
-    console.error("Passport download failed",error);
+    console.error("Certificate download failed",error);
     alert("Download failed. You can still save your certificate by clicking Print / Save as PDF, or right-clicking the certificate image and choosing Save image as.");
   }
 }
