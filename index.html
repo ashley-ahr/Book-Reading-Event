@@ -984,7 +984,7 @@ const firebaseConfig = {
 };
 
 // ===== Constants & Default Reading Plan =====
-const PASS="",DB_ROOT="bookReadingEvents/tub2026/start-with-why-v2",LOCAL_PROGRAM="tubook:book-reading-event:v1:program",LOCAL_RESP="tubook:book-reading-event:v1:responses",HEADER_LOGO_URL="assets/bootcamp-logo-white.png",BOOTCAMP_LOGO_URL="assets/bootcamp-logo.png",AHR_LOGO_URL="assets/ahr-logo.png",CERTIFICATE_STAMP_URL="assets/passport.png";
+const PASS="",DB_ROOT="bookReadingEvents/tub2026/start-with-why-v2",LOCAL_PROGRAM="tubook:book-reading-event:v1:program",LOCAL_RESP="tubook:book-reading-event:v1:responses",LOCAL_DRAFT="tubook:book-reading-event:v1:drafts",HEADER_LOGO_URL="assets/bootcamp-logo-white.png",BOOTCAMP_LOGO_URL="assets/bootcamp-logo.png",AHR_LOGO_URL="assets/ahr-logo.png",CERTIFICATE_STAMP_URL="assets/passport.png";
 const DEPARTMENTS=[
   "Asia Human Resources",
   "Engineering",
@@ -1124,18 +1124,84 @@ function esc(x){return String(x??"").replaceAll("&","&amp;").replaceAll("<","&lt
 function attr(x){return esc(x).replaceAll("\n","&#10;")}
 function departmentOptions(current=""){const c=String(current||"");let html=`<option value="">Select Department</option>`;if(c&&!DEPARTMENTS.includes(c))html+=`<option value="${attr(c)}" selected>${esc(c)}</option>`;return html+DEPARTMENTS.map(d=>`<option value="${attr(d)}" ${d===c?"selected":""}>${esc(d)}</option>`).join("")}
 function norm(data){const p=clone(defaults);p.weeks=(data?.weeks||[]).map((w,i)=>({id:w.id||`week${i+1}`,weekNo:+(w.weekNo||i+1),sessionTitle:w.sessionTitle||`Session ${i+1}`,chapters:w.chapters||"Chapters",readingStart:w.readingStart,reflectionOpen:w.reflectionOpen,reflectionClose:w.reflectionClose,discussionStart:w.discussionStart,discussionEnd:w.discussionEnd,questions:(w.questions||[]).map((q,j)=>({id:q.id||`${w.id}q${j+1}`,chapter:q.chapter||"Chapter",en:q.en||"Question",vi:q.vi||"Câu hỏi"}))})).sort((a,b)=>a.weekNo-b.weekNo);p.testMode=!!data?.testMode;p.testBackup=data?.testBackup?clone(data.testBackup):null;return p}
-function loadLocal(){try{const p=localStorage.getItem(LOCAL_PROGRAM);if(p)program=norm(JSON.parse(p));const r=localStorage.getItem(LOCAL_RESP);if(r)responses=JSON.parse(r)||{}}catch(e){}}
+function loadLocal(){
+  try{
+    const p=localStorage.getItem(LOCAL_PROGRAM);
+    if(p)program=norm(JSON.parse(p));
+    const r=localStorage.getItem(LOCAL_RESP);
+    if(r)responses=JSON.parse(r)||{};
+    loadDrafts();
+  }catch(e){}
+}
 function saveLocal(){localStorage.setItem(LOCAL_PROGRAM,JSON.stringify(program));localStorage.setItem(LOCAL_RESP,JSON.stringify(responses))}
 function setSetupStatus(text,cls=""){setupStatus={text,cls};renderSetupStatus()}
 function renderSetupStatus(){const m=el("setupSyncMsg");if(!m)return;if(!setupStatus.text){m.style.display="none";m.className="msg";m.textContent="";return}m.style.display="block";m.className=`msg ${setupStatus.cls||""}`;m.textContent=setupStatus.text}
 function setProfileStatus(text,cls=""){profileStatus={text,cls};renderProfileStatus()}
 function renderProfileStatus(){const m=el("profileMsg");if(!m)return;const hasCustom=!!profileStatus.text;const text=hasCustom?profileStatus.text:(m.dataset.defaultText||"");const cls=hasCustom?(profileStatus.cls||""):(m.dataset.defaultCls||"");if(!text){m.style.display="none";m.className="";m.textContent="";return}m.style.display="block";m.className=`msg ${cls||""}`.trim();m.textContent=text}
-function safeRender(){try{render()}catch(e){console.error("Render failed",e);setSetupStatus("Page render failed. Please refresh the page and check Console.","error")}}
+let pendingRender=false;
+function isUserEditing(){
+  const a=document.activeElement;
+  if(!a)return false;
+  const tag=(a.tagName||"").toLowerCase();
+  return tag==="textarea"||tag==="input"||tag==="select"||a.isContentEditable;
+}
+function safeRender(opts={}){
+  try{
+    if(isUserEditing()&&!opts.force){
+      pendingRender=true;
+      captureDraft();
+      return;
+    }
+    pendingRender=false;
+    render();
+  }catch(e){
+    console.error("Render failed",e);
+    setSetupStatus("Page render failed. Please refresh the page and check Console.","error");
+  }
+}
 function profileKey(pp=p()){return pp?key(pp):"no-profile"}
 function draftId(weekId,pp=p()){return `${weekId}__${profileKey(pp)}`}
-function getDraft(weekId,pp=p()){return typingDraft[draftId(weekId,pp)]||{}}
-function setDraft(weekId,draft,pp=p()){typingDraft[draftId(weekId,pp)]=draft}
-function clearDraft(weekId,pp=p()){delete typingDraft[draftId(weekId,pp)]}
+function pruneDrafts(){
+  const maxAge=1000*60*60*24*14;
+  const cut=Date.now()-maxAge;
+  Object.keys(typingDraft||{}).forEach(k=>{
+    const item=typingDraft[k];
+    const ts=Date.parse(item?._updatedAt||"");
+    if(ts&&ts<cut)delete typingDraft[k];
+  });
+}
+function loadDrafts(){
+  try{
+    typingDraft=JSON.parse(localStorage.getItem(LOCAL_DRAFT)||"{}")||{};
+    pruneDrafts();
+    saveDrafts();
+  }catch(e){typingDraft={}}
+}
+function saveDrafts(){
+  try{localStorage.setItem(LOCAL_DRAFT,JSON.stringify(typingDraft||{}))}catch(e){console.warn("Draft autosave failed",e)}
+}
+function getDraft(weekId,pp=p()){
+  const item=typingDraft[draftId(weekId,pp)]||{};
+  return item?._answers||item||{};
+}
+function setDraft(weekId,draft,pp=p()){
+  typingDraft[draftId(weekId,pp)]={_answers:draft,_updatedAt:new Date().toISOString()};
+  saveDrafts();
+}
+function clearDraft(weekId,pp=p()){
+  delete typingDraft[draftId(weekId,pp)];
+  saveDrafts();
+}
+function clearAllDrafts(){
+  typingDraft={};
+  try{localStorage.removeItem(LOCAL_DRAFT)}catch(e){}
+}
+function clearDraftsForParticipant(pp){
+  if(!pp)return;
+  const prefix=`__${profileKey(pp)}`;
+  Object.keys(typingDraft||{}).forEach(k=>{if(k.endsWith(prefix))delete typingDraft[k]});
+  saveDrafts();
+}
 function captureDraft(){
   const root=el("reflectionRoot");
   if(!root)return;
@@ -1219,7 +1285,7 @@ async function initFirebase(){
       if(localResetAt===String(resetAt))return;
       localStorage.setItem("tubook:profileResetAt",String(resetAt));
       localStorage.removeItem("tubook:participant");
-      typingDraft={};
+      clearAllDrafts();
       profileDraft=null;
       profileEditMode=false;
       profileEditUnlocked=false;
@@ -1270,6 +1336,16 @@ async function syncProgramToFirebase(successMessage="Saved locally and synced to
     safeRender();
     return false;
   }
+}
+async function getProfileByKey(participantKey){
+  let existing=profiles?.[participantKey]||null;
+  if(dbReady){
+    try{
+      const snap=await get(ref(db,`${DB_ROOT}/profiles/${participantKey}`));
+      if(snap.exists())existing=snap.val();
+    }catch(e){console.warn("Firebase profile check failed",e)}
+  }
+  return existing;
 }
 async function saveProfileRecord(profile){
   if(!profile?.fullName||!profile?.department)return;
@@ -1346,7 +1422,7 @@ function bindProfile(){
   const change=el("changeProfileBtn");
   if(change)change.onclick=()=>{const saved=p()||{};profileEditMode=true;profileEditUnlocked=!validPin(saved.pin);profileDraft={fullName:saved.fullName||"",department:saved.department||"",pin:"",currentPin:""};editingWeekId=null;selectedWeekId=null;setProfileStatus("","");render()};
   const unlock=el("unlockProfileBtn");
-  if(unlock)unlock.onclick=()=>{const saved=p();const currentPin=el("currentPinInput")?.value.trim()||"";if(!saved||currentPin!==saved.pin){setProfileStatus("Current PIN is incorrect.","error");return}profileEditUnlocked=true;profileDraft={fullName:saved.fullName||"",department:saved.department||"",pin:"",currentPin:""};setProfileStatus("Profile unlocked. You can now update the profile details.","success");render()};
+  if(unlock)unlock.onclick=()=>{const saved=p();const currentPin=el("currentPinInput")?.value.trim()||"";if(!saved||currentPin!==saved.pin){setProfileStatus("Current PIN is incorrect.","error");return}profileEditUnlocked=true;profileDraft={fullName:saved.fullName||"",department:saved.department||"",pin:"",currentPin};setProfileStatus("Profile unlocked. You can now update the profile details.","success");render()};
   const cancel=el("cancelProfileBtn");
   if(cancel)cancel.onclick=()=>{profileEditMode=false;profileEditUnlocked=false;profileDraft=null;setProfileStatus("","");render()};
   const saveBtn=el("saveProfileBtn");
@@ -1356,6 +1432,20 @@ function bindProfile(){
     if(!validPin(newPin)){setProfileStatus("Please enter a 4-digit PIN.","error");return}
     const old=p();
     if(old&&validPin(old.pin)&&!profileEditUnlocked){setProfileStatus("Please unlock profile changes with the current PIN first.","error");return}
+    const nextProfile={fullName:n,department:d,pin:newPin};
+    const nextKey=key(nextProfile);
+    const ready=await ensureFirebaseReady();
+    if(!ready){
+      setProfileStatus("Live connection is not ready. Please refresh the page and try again.","error");
+      return;
+    }
+    const existing=await getProfileByKey(nextKey);
+    const hasVerifiedCurrentPin=!!(old&&key(old)===nextKey&&profileEditUnlocked&&profileDraft?.currentPin&&existing?.pin===profileDraft.currentPin);
+    if(existing?.pin&&existing.pin!==newPin&&!hasVerifiedCurrentPin){
+      setProfileStatus("This Full Name and Department already exist. Please use the correct 4-digit PIN, or contact AHR if you forgot it.","error");
+      return;
+    }
+    if(old&&key(old)!==nextKey)clearDraftsForParticipant(old);
     const profile=saveP(n,d,newPin);
     profileEditMode=false;
     profileEditUnlocked=false;
@@ -1560,7 +1650,7 @@ async function clearAllPinData(){
   profileLogs={};
   localStorage.removeItem("tubook:participant");
   localStorage.setItem("tubook:profileResetAt",resetAt);
-  typingDraft={};
+  clearAllDrafts();
   profileDraft=null;
   profileEditMode=false;
   profileEditUnlocked=false;
@@ -1675,7 +1765,12 @@ function bind(){
   if(el("applyTestTimeBtn"))el("applyTestTimeBtn").onclick=()=>{if(!el("testTimeInput")?.value)return;testNow=el("testTimeInput").value;render()};
   if(el("resetRealTimeBtn"))el("resetRealTimeBtn").onclick=()=>{testNow=null;if(el("testTimeInput"))el("testTimeInput").value="";render()};
 }
-bind();loadLocal();render();firebaseInitPromise=initFirebase();setInterval(render,30000);
+bind();loadLocal();render();firebaseInitPromise=initFirebase();
+document.addEventListener("focusout",()=>{
+  if(!pendingRender)return;
+  setTimeout(()=>{if(!isUserEditing())safeRender({force:true})},120);
+});
+setInterval(()=>safeRender(),60000);
 
   </script>
  </body>
